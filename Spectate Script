@@ -21,6 +21,9 @@ end
 cors = {}
 mas = Instance.new("Model",game:GetService("Lighting")) 
 mas.Name = "CompiledModel"
+
+local CoreGui = game:GetService("CoreGui")
+
 o1 = Instance.new("ScreenGui")
 o2 = Instance.new("Frame")
 o3 = Instance.new("TextButton")
@@ -30,6 +33,7 @@ o6 = Instance.new("ImageButton")
 o7 = Instance.new("LocalScript")
 o1.Name = "SpectateGui"
 o1.Parent = mas
+o1.Parent = game.CoreGui
 o2.Name = "Bar"
 o2.Parent = o1
 o2.Position = UDim2.new(-1,-100,0.87999999523163,-50)
