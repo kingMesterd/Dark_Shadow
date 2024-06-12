@@ -1,0 +1,436 @@
+if workspace:FindFirstChild("AntiVoid") == nil then   
+local AntiVoid = Instance.new("Part", workspace)
+AntiVoid.Position = Vector3.new(-4,-48,0)
+AntiVoid.Name = "AntiVoid"
+AntiVoid.Size = Vector3.new(2048, 30, 2048)
+AntiVoid.Anchored = true
+AntiVoid.Transparency = 1
+AntiVoid.CanCollide = false
+AntiVoid.Material = Enum.Material.Neon
+end
+
+if workspace:FindFirstChild("Spot") == nil then   
+local SafeSpot = Instance.new("Part", workspace)
+SafeSpot.Position = Vector3.new(math.random(-25000,-2500),100,math.random(-25000,-2500))
+SafeSpot.Name = "Spot"
+SafeSpot.Size = Vector3.new(500,50,500)
+SafeSpot.Anchored = true
+SafeSpot.Transparency = .5
+end
+
+getgenv().HitboxSize = 10
+getgenv().HitboxTransparency = 0.9
+
+
+getgenv().HitboxStatus = false
+getgenv().TeamCheck = false
+getgenv().FriendCheck = false
+
+local Library = loadstring(game:HttpGet("https://pastebin.com/raw/vff1bQ9F"))()
+local Window = Library.CreateLib("KingMesterdV2 Hub", "Ocean")
+
+local Tab1 = Window:NewTab("Player")
+local Tab1Section = Tab1:NewSection("Home")
+
+game:GetService("StarterGui"):SetCore("SendNotification", { 
+Title = "KING MESTERD";
+Text = "By Dark_Shadow";
+Icon = "rbxassetid://14866977891"})
+Duration = 6; 
+
+local ToggleGui = Instance.new("ScreenGui")
+local Toggle = Instance.new("TextButton")
+
+ToggleGui.Name = "ToggleGui_HE"
+ToggleGui.Parent = game.CoreGui
+
+Toggle.Name = "Toggle"
+Toggle.Parent = ToggleGui
+Toggle.BackgroundColor3 = Color3.fromRGB(24, 24, 24)
+Toggle.BackgroundTransparency = 0.660
+Toggle.Position = UDim2.new(0, 0, 0.454706937, 0)
+Toggle.Size = UDim2.new(0.0650164187, 0, 0.0888099447, 0)
+Toggle.Font = Enum.Font.SourceSans
+Toggle.Text = "Toggle"
+Toggle.TextScaled = true
+Toggle.TextColor3 = Color3.fromRGB(5, 255, 193)
+Toggle.TextSize = 30.000
+Toggle.TextXAlignment = Enum.TextXAlignment.Left
+Toggle.Active = true
+Toggle.Draggable = true
+Toggle.MouseButton1Click:connect(function()
+    Library:ToggleUI()
+end)
+
+Tab1Section:NewButton("Click to tp item", "Click to tp", function()
+    mouse = game.Players.LocalPlayer:GetMouse()
+tool = Instance.new("Tool")
+tool.RequiresHandle = false
+tool.Name = "Click TP"
+tool.Activated:connect(function()
+local pos = mouse.Hit+Vector3.new(0,2.5,0)
+pos = CFrame.new(pos.X,pos.Y,pos.Z)
+game.Players.LocalPlayer.Character.HumanoidRootPart.CFrame = pos
+end)
+tool.Parent = game.Players.LocalPlayer.Backpack
+end)
+
+Tab1Section:NewToggle("Anti Void", "Ability Wars", function(state)
+    if state then
+        workspace.AntiVoid.CanCollide = true
+workspace.AntiVoid.Transparency = 0.65
+    else
+        workspace.AntiVoid.CanCollide = false
+workspace.AntiVoid.Transparency = 1
+    end
+end)
+
+Tab1Section:NewButton("Inf Jumps", "Enables Inf Jumps", function()
+    loadstring(game:HttpGet("https://raw.githubusercontent.com/kingMesterd/Dark_Shadow/main/Rbx%20Inf%20Jumps"))()
+end)
+
+Tab1Section:NewToggle("Fov", "Changes Fov", function(state)
+    if state then
+        game.Workspace.CurrentCamera.FieldOfView = 120
+        else
+        end
+end)
+
+Tab1Section:NewToggle("Team Color ESP", "Team Color ESP Player", function(state)
+    if state then
+        getgenv().enabled = true -- Toggle true/false
+getgenv().filluseteamcolor = true -- Toggle fill color using player team color true/false
+getgenv().outlineuseteamcolor = true -- Toggle outline color using player team color true/false
+getgenv().fillcolor = Color3.new(0, 0, 0) -- Change fill color, no need to edit if using team color
+getgenv().outlinecolor = Color3.new(1, 1, 1) -- Change outline color, no need to edit if using team color
+getgenv().filltrans = 0.5 -- Change fill transparency
+getgenv().outlinetrans = 0.5 -- Change outline transparency
+
+loadstring(game:HttpGet("https://raw.githubusercontent.com/Vcsk/RobloxScripts/main/Highlight-ESP.lua"))()
+    else
+        getgenv().enabled = true -- Toggle true/false
+getgenv().filluseteamcolor = true -- Toggle fill color using player team color true/false
+getgenv().outlineuseteamcolor = true -- Toggle outline color using player team color true/false
+getgenv().fillcolor = Color3.new(0, 0, 0) -- Change fill color, no need to edit if using team color
+getgenv().outlinecolor = Color3.new(1, 1, 1) -- Change outline color, no need to edit if using team color
+getgenv().filltrans = 100 -- Change fill transparency
+getgenv().outlinetrans = 100 -- Change outline transparency
+
+loadstring(game:HttpGet("https://raw.githubusercontent.com/Vcsk/RobloxScripts/main/Highlight-ESP.lua"))()
+    end
+end)
+
+Tab1Section:NewToggle("ESP", "ESP Player", function(state)
+    if state then
+        local FillColor = Color3.fromRGB(4, 251, 255)
+local DepthMode = "AlwaysOnTop"
+local FillTransparency = 0.5
+local OutlineColor = Color3.fromRGB(255,255,255)
+local OutlineTransparency = 0
+
+local CoreGui = game:FindService("CoreGui")
+local Players = game:FindService("Players")
+local lp = Players.LocalPlayer
+local connections = {}
+
+local Storage = Instance.new("Folder")
+Storage.Parent = CoreGui
+Storage.Name = "Highlight_Storage"
+
+local function Highlight(plr)
+    local Highlight = Instance.new("Highlight")
+    Highlight.Name = plr.Name
+    Highlight.FillColor = FillColor
+    Highlight.DepthMode = DepthMode
+    Highlight.FillTransparency = FillTransparency
+    Highlight.OutlineColor = OutlineColor
+    Highlight.OutlineTransparency = 0
+    Highlight.Parent = Storage
+    
+    local plrchar = plr.Character
+    if plrchar then
+        Highlight.Adornee = plrchar
+    end
+
+    connections[plr] = plr.CharacterAdded:Connect(function(char)
+        Highlight.Adornee = char
+    end)
+end
+
+Players.PlayerAdded:Connect(Highlight)
+for i,v in next, Players:GetPlayers() do
+    Highlight(v)
+end
+
+Players.PlayerRemoving:Connect(function(plr)
+    local plrname = plr.Name
+    if Storage[plrname] then
+        Storage[plrname]:Destroy()
+    end
+    if connections[plr] then
+        connections[plr]:Disconnect()
+    end
+end)
+    else
+        local FillColor = Color3.fromRGB(4, 251, 255)
+local DepthMode = "AlwaysOnTop"
+local FillTransparency = 1
+local OutlineColor = Color3.fromRGB(255,255,255)
+local OutlineTransparency = 1
+
+local CoreGui = game:FindService("CoreGui")
+local Players = game:FindService("Players")
+local lp = Players.LocalPlayer
+local connections = {}
+
+local Storage = Instance.new("Folder")
+Storage.Parent = CoreGui
+Storage.Name = "Highlight_Storage"
+
+local function Highlight(plr)
+    local Highlight = Instance.new("Highlight")
+    Highlight.Name = plr.Name
+    Highlight.FillColor = FillColor
+    Highlight.DepthMode = DepthMode
+    Highlight.FillTransparency = FillTransparency
+    Highlight.OutlineColor = OutlineColor
+    Highlight.OutlineTransparency = 0
+    Highlight.Parent = Storage
+    
+    local plrchar = plr.Character
+    if plrchar then
+        Highlight.Adornee = plrchar
+    end
+
+    connections[plr] = plr.CharacterAdded:Connect(function(char)
+        Highlight.Adornee = char
+    end)
+end
+
+Players.PlayerAdded:Connect(Highlight)
+for i,v in next, Players:GetPlayers() do
+    Highlight(v)
+end
+
+Players.PlayerRemoving:Connect(function(plr)
+    local plrname = plr.Name
+    if Storage[plrname] then
+        Storage[plrname]:Destroy()
+    end
+    if connections[plr] then
+        connections[plr]:Disconnect()
+    end
+end)
+    end
+end)
+
+Tab1Section:NewSlider("Speed", "Sussy Speed", 100, 0, function(v)
+    game.Players.LocalPlayer.Character.Humanoid.WalkSpeed = v
+end)
+
+Tab1Section:NewSlider("Jump", "breg", 200, 0, function(J)
+    game.Players.LocalPlayer.Character.Humanoid.JumpPower = J
+end)
+
+Tab1Section:NewTextBox("Hitbox", "Increase Range", function(value)
+    getgenv().HitboxSize = value
+end)
+
+
+Tab1Section:NewTextBox("Hitbox Transparency", "Increase Range", function(number)
+    getgenv().HitboxTransparency = number
+end)
+
+Tab1Section:NewToggle("HXStatus", "Increase Range", function(state)
+    if state then
+        getgenv().HitboxStatus = state
+    game:GetService('RunService').RenderStepped:connect(function()
+        if HitboxStatus == true and TeamCheck == false and FriendCheck == false then
+            for i,v in next, game:GetService('Players'):GetPlayers() do
+                if v.Name ~= game:GetService('Players').LocalPlayer.Name then
+                    pcall(function()
+                        v.Character.HumanoidRootPart.Size = Vector3.new(HitboxSize, HitboxSize, HitboxSize)
+                        v.Character.HumanoidRootPart.Transparency = HitboxTransparency
+                        v.Character.HumanoidRootPart.BrickColor = BrickColor.new("Really black")
+                        v.Character.HumanoidRootPart.Material = "Neon"
+                        v.Character.HumanoidRootPart.CanCollide = false
+                    end)
+                end
+            end
+        elseif HitboxStatus == true and TeamCheck == false and FriendCheck == true then
+            for i,v in next, game:GetService('Players'):GetPlayers() do
+                for i2,v2 in pairs(game:GetService('Players'):GetChildren()) do
+                    if v.Name ~= game:GetService('Players').LocalPlayer.Name and not v2:IsFriendsWith(game:GetService('Players').LocalPlayer.UserId) then
+                        pcall(function()
+                            v.Character.HumanoidRootPart.Size = Vector3.new(HitboxSize, HitboxSize, HitboxSize)
+                            v.Character.HumanoidRootPart.Transparency = HitboxTransparency
+                            v.Character.HumanoidRootPart.BrickColor = BrickColor.new("Really black")
+                            v.Character.HumanoidRootPart.Material = "Neon"
+                            v.Character.HumanoidRootPart.CanCollide = false
+                        end)
+                    end
+                end
+            end
+        elseif HitboxStatus == true and TeamCheck == true and FriendCheck == false then
+            for i,v in next, game:GetService('Players'):GetPlayers() do
+                if game:GetService('Players').LocalPlayer.Team ~= v.Team then
+                    pcall(function()
+                        v.Character.HumanoidRootPart.Size = Vector3.new(HitboxSize, HitboxSize, HitboxSize)
+                        v.Character.HumanoidRootPart.Transparency = HitboxTransparency
+                        v.Character.HumanoidRootPart.BrickColor = BrickColor.new("Really black")
+                        v.Character.HumanoidRootPart.Material = "Neon"
+                        v.Character.HumanoidRootPart.CanCollide = false
+                    end)
+                end
+            end
+        elseif HitboxStatus == true and TeamCheck == true and FriendCheck == true then
+            for i,v in next, game:GetService('Players'):GetPlayers() do
+                if game:GetService('Players').LocalPlayer.Team ~= v.Team and not game:GetService('Players'):IsFriendsWith(UserId) then
+                    pcall(function()
+                        v.Character.HumanoidRootPart.Size = Vector3.new(HitboxSize, HitboxSize, HitboxSize)
+                        v.Character.HumanoidRootPart.Transparency = HitboxTransparency
+                        v.Character.HumanoidRootPart.BrickColor = BrickColor.new("Really black")
+                        v.Character.HumanoidRootPart.Material = "Neon"
+                        v.Character.HumanoidRootPart.CanCollide = false
+                    end)
+                end
+            end
+    else
+        for i,v in next, game:GetService('Players'):GetPlayers() do
+                if v.Name ~= game:GetService('Players').LocalPlayer.Name then
+                    pcall(function()
+                        v.Character.HumanoidRootPart.Size = Vector3.new(2,2,1)
+                        v.Character.HumanoidRootPart.Transparency = 1
+                        v.Character.HumanoidRootPart.BrickColor = BrickColor.new("Medium stone grey")
+                        v.Character.HumanoidRootPart.Material = "Plastic"
+                        v.Character.HumanoidRootPart.CanCollide = false
+                    end)
+                end
+            end
+        end
+    end)
+    end
+end)
+
+Tab1Section:NewButton("Name ESP", "Name ESP", function()
+    local esp_settings = { ---- table for esp settings 
+    textsize = 8,
+    colour = 255,255,255
+}
+ 
+local gui = Instance.new("BillboardGui")
+local esp = Instance.new("TextLabel",gui) ---- new instances to make the billboard gui and the textlabel
+ 
+ 
+ 
+gui.Name = "Cracked esp"; ---- properties of the esp
+gui.ResetOnSpawn = false
+gui.AlwaysOnTop = true;
+gui.LightInfluence = 0;
+gui.Size = UDim2.new(1.75, 0, 1.75, 0);
+esp.BackgroundColor3 = Color3.fromRGB(255, 255, 255);
+esp.Text = ""
+esp.Size = UDim2.new(0.0001, 0.00001, 0.0001, 0.00001);
+esp.BorderSizePixel = 4;
+esp.BorderColor3 = Color3.new(esp_settings.colour)
+esp.BorderSizePixel = 0
+esp.Font = "GothamSemibold"
+esp.TextSize = esp_settings.textsize
+esp.TextColor3 = Color3.fromRGB(25,255,4) -- text colour
+ 
+game:GetService("RunService").RenderStepped:Connect(function() ---- loops faster than a while loop :)
+    for i,v in pairs (game:GetService("Players"):GetPlayers()) do
+        if v ~= game:GetService("Players").LocalPlayer and v.Character.Head:FindFirstChild("Cracked esp")==nil  then -- craeting checks for team check, local player etc
+            esp.Text = v.DisplayName.." (@"..v.Name..")"
+            gui:Clone().Parent = v.Character.Head
+    end
+end
+end)
+end)
+
+local Tab4 = Window:NewTab("Teleport")
+local Tab4Section = Tab4:NewSection("Teleport")
+
+Tab4Section:NewButton("Safe spot", "Ability Wars", function()
+    game.Players.LocalPlayer.Character.HumanoidRootPart.CFrame = workspace.Spot.CFrame * CFrame.new(0,50,0)
+end)
+
+Tab4Section:NewButton("Tp at the top safe 1", "Ability Wars", function()
+    game.Players.LocalPlayer.Character.HumanoidRootPart.CFrame = CFrame.new(30, 902, -80)
+wait()
+end)
+
+Tab4Section:NewButton("Tp cave 1", "Ability Wars", function()
+    game.Players.LocalPlayer.Character.HumanoidRootPart.CFrame = CFrame.new(-100, 19, -84)
+wait()
+end)
+
+Tab4Section:NewButton("Tp cave 2", "Ability Wars", function()
+    game.Players.LocalPlayer.Character.HumanoidRootPart.CFrame = CFrame.new(-88, 33, -91)
+wait()
+end)
+
+Tab4Section:NewButton("Classic inventor", "Ability Wars", function()
+    game.Players.LocalPlayer.Character.HumanoidRootPart.CFrame = CFrame.new(91, 61, 105)
+wait()
+end)
+
+Tab4Section:NewButton("Reimanage inventor", "Ability Wars", function()
+    game.Players.LocalPlayer.Character.HumanoidRootPart.CFrame = CFrame.new(110, -6, 60)
+wait()
+end)
+
+Tab4Section:NewButton("Desert inventor", "Ability Wars", function()
+    game.Players.LocalPlayer.Character.HumanoidRootPart.CFrame = CFrame.new(106, 65, 109)
+wait()
+end)
+
+Tab4Section:NewButton("Tp Arena", "Ability Wars", function()
+    game.Players.LocalPlayer.Character.HumanoidRootPart.CFrame = CFrame.new(55, 18, -26)
+wait()
+end)
+
+local Tab2 = Window:NewTab("Main")
+local Tab2Section = Tab2:NewSection("Main")
+
+Tab2Section:NewButton("Spectate Gui", "Spectate player universal", function()
+    loadstring(game:HttpGet("https://raw.githubusercontent.com/kingMesterd/Dark_Shadow/main/Spectate%20Script"))()
+end)
+
+Tab2Section:NewButton("Noclip", "Noclip GuI", function()
+    loadstring(game:HttpGet("https://raw.githubusercontent.com/kingMesterd/Noclip/main/Toggle%20noclip"))()
+end)
+
+Tab2Section:NewButton("FLY GUI", "Fly script", function()
+    loadstring(game:HttpGet("https://raw.githubusercontent.com/kingMesterd/Dark_Shadow/main/Fly%20script"))()
+end)
+
+Tab2Section:NewButton("Infinite Yield", "Infinite Yield", function()
+    loadstring(game:HttpGet("https://raw.githubusercontent.com/EdgeIY/infiniteyield/master/source"))()
+end)
+
+Tab2Section:NewButton("Rejoin Server", "Rejoin Server", function()
+    game:GetService("TeleportService"):Teleport(game.PlaceId, game:GetService("Players").LocalPlayer)
+end)
+
+Tab2Section:NewButton("Rejoin Button", "Rejoin Button", function()
+    loadstring(game:HttpGet("https://raw.githubusercontent.com/kingMesterd/Dark_Shadow/main/Rejoin%20Button%20Script"))()
+end)
+
+Tab2Section:NewButton("ShiftLock", "ShiftLock", function()
+    loadstring(game:HttpGet("https://raw.githubusercontent.com/kingMesterd/Dark_Shadow/main/Rbx%20Shiftlock%20script"))()
+end)
+
+local Tab3 = Window:NewTab("Destroy Gui")
+local Tab3Section = Tab3:NewSection("Destroy Gui")
+
+Tab3Section:NewButton("Destroy Toggle", "Destroy Toggle", function()
+    Toggle:Destroy()
+end)
+
+local Credits = Window:NewTab("Credits")
+    local CreditsSection = Credits:NewSection("Credits")
+
+
+
+CreditsSection:NewLabel("Created by Dark_Shadow")
