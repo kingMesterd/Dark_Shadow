@@ -1,9 +1,9 @@
 local CoreGui = game:GetService("StarterGui")
 
 CoreGui:SetCore("SendNotification", {
-    Title = "Script Made By ArkyWra",
+    Title = "Script Made By ArkyWra/Dark_Shadow",
     Text = "Tp to player",
-    Duration = 3.5,
+    Duration = 2.5,
 })
 
 local ScreenGui = Instance.new("ScreenGui")
@@ -14,8 +14,8 @@ local TextButton = Instance.new("TextButton")
 ScreenGui.Parent = game.CoreGui
 
 Frame.Parent = ScreenGui
-Frame.BackgroundColor3 = Color3.new(72,209,13)
-Frame.BorderColor3 = Color3.new(72, 209, 13)
+Frame.BackgroundColor3 = Color3.fromRGB(111,230,21)
+Frame.BorderColor3 = Color3.new(0.67451, 0.211765, 0.152941)
 Frame.Position = UDim2.new(0.9,0.5,0.3)
 Frame.Size = UDim2.new(0.08,0.1,0.12)
 Frame.Active = true
@@ -44,8 +44,8 @@ local TextButton = Instance.new("TextButton")
 ScreenGui.Parent = game.CoreGui
 
 Frame.Parent = ScreenGui
-Frame.BackgroundColor3 = Color3.new(72,209,13)
-Frame.BorderColor3 = Color3.new(72, 209, 13)
+Frame.BackgroundColor3 = Color3.fromRGB(111,230,21)
+Frame.BorderColor3 = Color3.new(0.67451, 0.211765, 0.152941)
 Frame.Position = UDim2.new(0.9,0.5,0.4)
 Frame.Size = UDim2.new(0.08,0.1,0.12)
 Frame.Active = true
