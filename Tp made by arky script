@@ -13,6 +13,7 @@ local TextButton = Instance.new("TextButton")
 
 ScreenGui.Parent = game.CoreGui
 
+Frame.Name = "TPGUI"
 Frame.Parent = ScreenGui
 Frame.BackgroundColor3 = Color3.fromRGB(111,230,21)
 Frame.BorderColor3 = Color3.new(0.67451, 0.211765, 0.152941)
@@ -43,6 +44,7 @@ local TextButton = Instance.new("TextButton")
 
 ScreenGui.Parent = game.CoreGui
 
+Frame.Name = "TPGUI"
 Frame.Parent = ScreenGui
 Frame.BackgroundColor3 = Color3.fromRGB(111,230,21)
 Frame.BorderColor3 = Color3.new(0.67451, 0.211765, 0.152941)
