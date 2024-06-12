@@ -405,6 +405,10 @@ Tab2Section:NewButton("FLY GUI", "Fly script", function()
     loadstring(game:HttpGet("https://raw.githubusercontent.com/kingMesterd/Dark_Shadow/main/Fly%20script"))()
 end)
 
+Tab2Section:NewButton("Tp to player Gui", "Teleport to player Gui", function()
+    loadstring(game:HttpGet("https://raw.githubusercontent.com/kingMesterd/Dark_Shadow/main/Tp%20made%20by%20arky%20script"))()
+end)
+
 Tab2Section:NewButton("Infinite Yield", "Infinite Yield", function()
     loadstring(game:HttpGet("https://raw.githubusercontent.com/EdgeIY/infiniteyield/master/source"))()
 end)
