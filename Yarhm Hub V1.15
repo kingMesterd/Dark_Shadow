@@ -209,7 +209,6 @@ Converted["_ListButton"].Text = "Placeholder"
 Converted["_ListButton"].TextColor3 = Color3.fromRGB(255, 255, 255)
 Converted["_ListButton"].TextSize = 14
 Converted["_ListButton"].TextWrapped = true
-Converted["_ListButton"].AnchorPoint = Vector2.new(0.5, 0.5)
 Converted["_ListButton"].BackgroundColor3 = Color3.fromRGB(49.00000087916851, 49.00000087916851, 49.00000087916851)
 Converted["_ListButton"].BorderColor3 = Color3.fromRGB(0, 0, 0)
 Converted["_ListButton"].BorderSizePixel = 0
