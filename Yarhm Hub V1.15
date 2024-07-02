@@ -185,7 +185,6 @@ Converted["_Open"].TextScaled = true
 Converted["_Open"].TextSize = 14
 Converted["_Open"].TextTransparency = 1
 Converted["_Open"].TextWrapped = true
-Converted["_Open"].AnchorPoint = false
 Converted["_Open"].BackgroundColor3 = Color3.fromRGB(255, 255, 255)
 Converted["_Open"].BackgroundTransparency = 1
 Converted["_Open"].BorderColor3 = Color3.fromRGB(0, 0, 0)
