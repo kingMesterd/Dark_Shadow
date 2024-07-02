@@ -550,7 +550,6 @@ Converted["_TextLabel4"].Parent = Converted["_MurdererBGUI"]
 
 Converted["_UIStroke5"].Parent = Converted["_TextLabel4"]
 
-Converted["_Menu"].AnchorPoint = Vector2.new(0, 1)
 Converted["_Menu"].BackgroundColor3 = Color3.fromRGB(255, 255, 255)
 Converted["_Menu"].BorderColor3 = Color3.fromRGB(0, 0, 0)
 Converted["_Menu"].BorderSizePixel = 0
