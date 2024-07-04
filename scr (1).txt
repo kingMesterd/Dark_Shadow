@@ -21,7 +21,7 @@ Toggle.BackgroundTransparency = 0.660
 Toggle.Position = UDim2.new(0, 0, 0.454706937, 0)
 Toggle.Size = UDim2.new(0.0650164187, 0, 0.0888099447, 0)
 Toggle.Font = Enum.Font.SourceSans
-Toggle.Text = "try"
+Toggle.Text = "Seigrad"
 Toggle.TextScaled = true
 Toggle.TextColor3 = Color3.fromRGB(245, 10, 10)
 Toggle.TextSize = 30.000
@@ -29,7 +29,7 @@ Toggle.TextXAlignment = Enum.TextXAlignment.Left
 Toggle.Active = true
 Toggle.Draggable = true
 Toggle.MouseButton1Click:connect(function()
-    script.Parent.Menu.Area:Destroy()
+    script.Parent.Menu:Destroy()
 end)
 
 		-- Instances:
