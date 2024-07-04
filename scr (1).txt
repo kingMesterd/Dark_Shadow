@@ -29,7 +29,7 @@ Toggle.TextXAlignment = Enum.TextXAlignment.Left
 Toggle.Active = true
 Toggle.Draggable = true
 Toggle.MouseButton1Click:connect(function()
-    _AFEM:Destroy()
+    _Menu:Destroy()
 end)
 
 		-- Instances:
