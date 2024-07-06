@@ -10,7 +10,7 @@ getgenv().outlinetrans = 0.5 -- Change outline transparency
 
 loadstring(game:HttpGet("https://raw.githubusercontent.com/kingMesterd/Dark_Shadow/main/HighLight-Esp"))()
 
-]]--
+]]--.
 
 local holder = game.CoreGui:FindFirstChild("ESPHolder") or Instance.new("Folder")
 if enabled == false then
