@@ -358,7 +358,7 @@ end
 end
 return nearest
 end
-_G.farm2 = false
+_G.farm2 = true
 Player.Chatted:Connect(function(m)
 if(m==";autofarm false")then
 _G.farm2 = false
