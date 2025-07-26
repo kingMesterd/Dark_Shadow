@@ -397,8 +397,6 @@ TabNilSection:NewToggle("ToggleText", "ToggleInfo", function(state)
         _G.farm2 = true
     else
         _G.farm2 = false
-        m = false
-        _G.globalTarget = false
     end
 end)
 
