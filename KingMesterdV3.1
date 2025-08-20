@@ -1,0 +1,1042 @@
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local LocalPlayer = Players.LocalPlayer
+local AntiFlingConnection = nil
+local TweenService = game:GetService("TweenService")
+local CoreGui = game:GetService("CoreGui")
+local PhysicsService = game:GetService("PhysicsService")
+local Player = Players.LocalPlayer
+local FlungPlayers = {}
+local inputTargetName = ""
+
+local function Message(_Title, _Text, Time)
+    local ScreenGui = Instance.new("ScreenGui")
+    ScreenGui.Parent = CoreGui
+
+    local Frame = Instance.new("Frame")
+    Frame.Size = UDim2.new(0, 200, 0, 50)
+    Frame.Position = UDim2.new(1, 320, 1, -100)
+    Frame.AnchorPoint = Vector2.new(1, 1)
+    Frame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+    Frame.BorderSizePixel = 0
+    Frame.Parent = ScreenGui
+    Frame.Visible = false
+
+    local UICorner = Instance.new("UICorner")
+    UICorner.CornerRadius = UDim.new(0, 12)
+    UICorner.Parent = Frame
+
+    local TitleLabel = Instance.new("TextLabel")
+    TitleLabel.Size = UDim2.new(1, -20, 0.4, 0)
+    TitleLabel.Position = UDim2.new(0, 10, 0, 8)
+    TitleLabel.BackgroundTransparency = 1
+    TitleLabel.Text = _Title
+    TitleLabel.Font = Enum.Font.GothamBold
+    TitleLabel.TextSize = 18
+    TitleLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+    TitleLabel.TextXAlignment = Enum.TextXAlignment.Left
+    TitleLabel.Parent = Frame
+
+    local TextLabel = Instance.new("TextLabel")
+    TextLabel.Size = UDim2.new(1, -20, 0.5, 0)
+    TextLabel.Position = UDim2.new(0, 10, 0.45, 0)
+    TextLabel.BackgroundTransparency = 1
+    TextLabel.Text = _Text
+    TextLabel.Font = Enum.Font.Gotham
+    TextLabel.TextSize = 15
+    TextLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
+    TextLabel.TextXAlignment = Enum.TextXAlignment.Left
+    TextLabel.TextWrapped = true
+    TextLabel.Parent = Frame
+
+    local titleLower = string.lower(_Title)
+    if titleLower:find("success") then
+        Frame.BackgroundColor3 = Color3.fromRGB(0, 200, 0)
+    elseif titleLower:find("error") or titleLower:find("failed") then
+        Frame.BackgroundColor3 = Color3.fromRGB(200, 0, 0)
+    elseif titleLower:find("notice") or titleLower:find("warning") then
+        Frame.BackgroundColor3 = Color3.fromRGB(255, 170, 0)
+    else
+        Frame.BackgroundColor3 = Color3.fromRGB(0, 170, 255)
+    end
+
+    Frame.Visible = true
+    TweenService:Create(Frame, TweenInfo.new(0.4, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+        Position = UDim2.new(1, -20, 1, -20)
+    }):Play()
+
+    task.delay(Time or 3, function()
+        TweenService:Create(Frame, TweenInfo.new(0.4, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {
+            Position = UDim2.new(1, 320, 1, -100)
+        }):Play()
+        task.wait(0.4)
+        ScreenGui:Destroy()
+    end)
+end
+
+local function startAntiFling()
+    AntiFlingConnection = RunService.Heartbeat:Connect(function()
+        for _, player in ipairs(Players:GetPlayers()) do
+            if player ~= LocalPlayer and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+                local hrp = player.Character.HumanoidRootPart
+                if hrp.Velocity.Magnitude > 100 or hrp.RotVelocity.Magnitude > 100 then
+                    hrp.Velocity = Vector3.new(0, 0, 0)
+                    hrp.RotVelocity = Vector3.new(0, 0, 0)
+                    hrp.CFrame = hrp.CFrame + Vector3.new(0, -1000, 0)
+                end
+            end
+        end
+        if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
+            local hrp = LocalPlayer.Character.HumanoidRootPart
+            hrp.CustomPhysicalProperties = PhysicalProperties.new(0, 0, 0)
+            hrp.AssemblyLinearVelocity = Vector3.zero
+            hrp.AssemblyAngularVelocity = Vector3.zero
+        end
+    end)
+end
+
+local function stopAntiFling()
+    if AntiFlingConnection then
+        AntiFlingConnection:Disconnect()
+        AntiFlingConnection = nil
+    end
+end
+
+local function GetPlayer(Name)
+    Name = Name:lower()
+    for _, x in next, Players:GetPlayers() do
+        if x ~= Player then
+            if x.Name:lower():match("^" .. Name) or x.DisplayName:lower():match("^" .. Name) then
+                return x
+            end
+        end
+    end
+    return nil
+end
+
+local function IsPlayerSitting(TargetPlayer)
+    local char = TargetPlayer.Character
+    local hum = char and char:FindFirstChildOfClass("Humanoid")
+    if hum and hum.Sit then
+        return true
+    end
+    local root = char and char:FindFirstChild("HumanoidRootPart")
+    if root then
+        for _, part in ipairs(root:GetConnectedParts()) do
+            if part:IsA("Seat") or part:IsA("VehicleSeat") then
+                return true
+            end
+        end
+    end
+    return false
+end
+
+local function IsInAir(TargetPlayer)
+    local root = TargetPlayer.Character and TargetPlayer.Character:FindFirstChild("HumanoidRootPart")
+    return root and (root.Position.Y - workspace.FallenPartsDestroyHeight) > 5 and root.Velocity.Y > 2
+end
+
+local function CanPhysicallyCollide(target)
+    if not target or not target:IsA("BasePart") then return false end
+    if not target.CanCollide then return false end
+    local myGroup = PhysicsService:GetCollisionGroupName(Player.Character and Player.Character:FindFirstChild("HumanoidRootPart").CollisionGroupId or 0)
+    local theirGroup = PhysicsService:GetCollisionGroupName(target.CollisionGroupId)
+    if myGroup and theirGroup then
+        if not PhysicsService:CollisionGroupsAreCollidable(myGroup, theirGroup) then
+            return false
+        end
+    end
+    local probe = Instance.new("Part")
+    probe.Size = Vector3.new(2, 2, 2)
+    probe.Anchored = true
+    probe.CanCollide = true
+    probe.Transparency = 1
+    probe.Position = target.Position
+    probe.Parent = workspace
+    local touching = probe:GetTouchingParts()
+    probe:Destroy()
+    for _, part in ipairs(touching) do
+        if part:IsDescendantOf(target.Parent) then
+            return true
+        end
+    end
+    return false
+end
+
+local function TargetCanCollide(TargetPlayer)
+    if not TargetPlayer.Character then return false end
+    for _, part in ipairs(TargetPlayer.Character:GetDescendants()) do
+        if part:IsA("BasePart") and CanPhysicallyCollide(part) then
+            return true
+        end
+    end
+    return false
+end
+
+local function SkidFling(TargetPlayer)
+    if not TargetCanCollide(TargetPlayer) then
+        return Message("Error", "Player can't collide, fling aborted", 5)
+    end
+    local Character = Player.Character
+    local Humanoid = Character and Character:FindFirstChildOfClass("Humanoid")
+    local RootPart = Humanoid and Humanoid.RootPart
+    local TCharacter = TargetPlayer.Character
+    local THumanoid = TCharacter and TCharacter:FindFirstChildOfClass("Humanoid")
+    local TRootPart = (THumanoid and THumanoid.RootPart) or (TCharacter and TCharacter:FindFirstChild("HumanoidRootPart"))
+    local THead = TCharacter and TCharacter:FindFirstChild("Head")
+    local Accessory = TCharacter and TCharacter:FindFirstChildOfClass("Accessory")
+    local Handle = Accessory and Accessory:FindFirstChild("Handle")
+    if FlungPlayers[TargetPlayer] then
+        if THumanoid and THumanoid.Health > 0 and IsInAir(TargetPlayer) then
+            return Message("Notice", "Player Already Flung", 5)
+        else
+            FlungPlayers[TargetPlayer] = nil
+        end
+    end
+    if IsPlayerSitting(TargetPlayer) then
+        return Message("Error", "Target is sitting", 5)
+    end
+    if Character and Humanoid and RootPart then
+        if RootPart.Velocity.Magnitude < 50 then
+            getgenv().OldPos = RootPart.CFrame
+        end
+        workspace.CurrentCamera.CameraSubject = THead or Handle or THumanoid
+        if not TCharacter:FindFirstChildWhichIsA("BasePart") then return end
+        local function FPos(BasePart, Pos, Ang)
+            RootPart.CFrame = CFrame.new(BasePart.Position) * Pos * Ang
+            Character:SetPrimaryPartCFrame(CFrame.new(BasePart.Position) * Pos * Ang)
+            RootPart.Velocity = Vector3.new(9e7, 9e7 * 10, 9e7)
+            RootPart.RotVelocity = Vector3.new(9e8, 9e8, 9e8)
+        end
+        local function SFBasePart(BasePart)
+            local TimeToWait = 2
+            local Time = tick()
+            local Angle = 0
+            repeat
+                if not CanPhysicallyCollide(BasePart) then
+                    return Message("Error", "Player lost collision mid-fling", 5)
+                end
+                if RootPart and THumanoid then
+                    if BasePart.Velocity.Magnitude < 50 then
+                        Angle = Angle + 100
+                        for _, offset in ipairs({
+                            Vector3.new(0, 1.5, 0),
+                            Vector3.new(0, -1.5, 0),
+                            Vector3.new(2.25, 1.5, -2.25),
+                            Vector3.new(-2.25, -1.5, 2.25),
+                            Vector3.new(0, 1.5, 0),
+                            Vector3.new(0, -1.5, 0),
+                        }) do
+                            FPos(BasePart, CFrame.new(offset) + THumanoid.MoveDirection * BasePart.Velocity.Magnitude / 1.25, CFrame.Angles(math.rad(Angle), 0, 0))
+                            task.wait()
+                        end
+                    else
+                        for _, mag in ipairs({
+                            THumanoid.WalkSpeed,
+                            -THumanoid.WalkSpeed,
+                            TRootPart.Velocity.Magnitude / 1.25,
+                            -TRootPart.Velocity.Magnitude / 1.25,
+                            TRootPart.Velocity.Magnitude / 1.25
+                        }) do
+                            FPos(BasePart, CFrame.new(0, 1.5, mag), CFrame.Angles(math.rad(90), 0, 0))
+                            task.wait()
+                            FPos(BasePart, CFrame.new(0, -1.5, mag), CFrame.Angles(0, 0, 0))
+                            task.wait()
+                        end
+                        FPos(BasePart, CFrame.new(0, -1.5 ,0), CFrame.Angles(math.rad(-90), 0, 0))
+                        task.wait()
+                    end
+                else
+                    break
+                end
+            until BasePart.Velocity.Magnitude > 500 or BasePart.Parent ~= TargetPlayer.Character or TargetPlayer.Parent ~= Players or not TargetPlayer.Character == TCharacter or THumanoid.Sit or Humanoid.Health <= 0 or tick() > Time + TimeToWait
+        end
+        getgenv().FPDH = getgenv().FPDH or workspace.FallenPartsDestroyHeight
+        workspace.FallenPartsDestroyHeight = 0/0
+        local BV = Instance.new("BodyVelocity")
+        BV.Name = "EpixVel"
+        BV.Parent = RootPart
+        BV.Velocity = Vector3.new(9e8, 9e8, 9e8)
+        BV.MaxForce = Vector3.new(1/0, 1/0, 1/0)
+        Humanoid:SetStateEnabled(Enum.HumanoidStateType.Seated, false)
+        if TRootPart and THead then
+            if (TRootPart.Position - THead.Position).Magnitude > 5 then
+                SFBasePart(THead)
+            else
+                SFBasePart(TRootPart)
+            end
+        elseif TRootPart then
+            SFBasePart(TRootPart)
+        elseif THead then
+            SFBasePart(THead)
+        elseif Handle then
+            SFBasePart(Handle)
+        else
+            return Message("Error", "Target is missing everything", 5)
+        end
+        BV:Destroy()
+        Humanoid:SetStateEnabled(Enum.HumanoidStateType.Seated, true)
+        workspace.CurrentCamera.CameraSubject = Humanoid
+        repeat
+            RootPart.CFrame = getgenv().OldPos * CFrame.new(0, .5, 0)
+            Character:SetPrimaryPartCFrame(getgenv().OldPos * CFrame.new(0, .5, 0))
+            Humanoid:ChangeState("GettingUp")
+            for _, x in ipairs(Character:GetChildren()) do
+                if x:IsA("BasePart") then
+                    x.Velocity, x.RotVelocity = Vector3.new(), Vector3.new()
+                end
+            end
+            task.wait()
+        until (RootPart.Position - getgenv().OldPos.p).Magnitude < 25
+        workspace.FallenPartsDestroyHeight = getgenv().FPDH
+        FlungPlayers[TargetPlayer] = true
+        TargetPlayer.CharacterAdded:Connect(function()
+            FlungPlayers[TargetPlayer] = nil
+        end)
+        if THumanoid and THumanoid.Health > 0 and IsInAir(TargetPlayer) then
+            Message("Success", "Player Successfully Flung", 5)
+        end
+    else
+        return Message("Error", "Random error", 5)
+    end
+end
+
+local normalHighlightEnabled = false
+local teamHighlightEnabled = false
+
+local normalHighlightColor = Color3.fromRGB(0, 255, 0)
+local normalHighlightTransparency = 0.6
+local teamHighlightTransparency = 0.6
+
+local normalHighlights = {}
+local teamHighlights = {}
+local trackedPlayers = {}
+
+local heartbeatConnection
+
+local function removeAllHighlights(tbl)
+    for player, highlight in pairs(tbl) do
+        if highlight then highlight:Destroy() end
+        tbl[player] = nil
+    end
+end
+
+local function applyNormalHighlight(player)
+    if not player.Character or not player.Character:FindFirstChild("HumanoidRootPart") then return end
+    local existing = player.Character:FindFirstChild("ESP_Normal")
+    if existing then existing:Destroy() end
+    local highlight = Instance.new("Highlight")
+    highlight.Name = "ESP_Normal"
+    highlight.FillColor = normalHighlightColor
+    highlight.OutlineColor = Color3.new(0, 0, 0)
+    highlight.FillTransparency = normalHighlightTransparency
+    highlight.OutlineTransparency = normalHighlightTransparency
+    highlight.Adornee = player.Character
+    highlight.Parent = player.Character
+    normalHighlights[player] = highlight
+end
+
+local function applyTeamHighlight(player)
+    if not player.Character or not player.Character:FindFirstChild("HumanoidRootPart") then return end
+    local existing = player.Character:FindFirstChild("ESP_Team")
+    if existing then existing:Destroy() end
+    local highlight = Instance.new("Highlight")
+    highlight.Name = "ESP_Team"
+    highlight.FillColor = player.Team and player.Team.TeamColor.Color or Color3.new(1, 1, 1)
+    highlight.OutlineColor = Color3.new(0, 0, 0)
+    highlight.FillTransparency = teamHighlightTransparency
+    highlight.OutlineTransparency = teamHighlightTransparency
+    highlight.Adornee = player.Character
+    highlight.Parent = player.Character
+    teamHighlights[player] = highlight
+end
+
+local function trackPlayer(player)
+    if player == game.Players.LocalPlayer then return end
+    trackedPlayers[player] = true
+    player.CharacterAdded:Connect(function()
+        repeat task.wait() until player.Character and player.Character:FindFirstChild("HumanoidRootPart")
+        if normalHighlightEnabled then applyNormalHighlight(player) end
+        if teamHighlightEnabled then applyTeamHighlight(player) end
+    end)
+end
+
+local function startTracking()
+    for _, player in ipairs(game.Players:GetPlayers()) do
+        if player ~= game.Players.LocalPlayer then
+            trackPlayer(player)
+        end
+    end
+
+    game.Players.PlayerAdded:Connect(trackPlayer)
+
+    heartbeatConnection = game:GetService("RunService").RenderStepped:Connect(function()
+        for player, _ in pairs(trackedPlayers) do
+            if player and player.Character then
+                if normalHighlightEnabled and not normalHighlights[player] then
+                    applyNormalHighlight(player)
+                end
+                if teamHighlightEnabled and not teamHighlights[player] then
+                    applyTeamHighlight(player)
+                end
+            else
+                if normalHighlights[player] then
+                    normalHighlights[player]:Destroy()
+                    normalHighlights[player] = nil
+                end
+                if teamHighlights[player] then
+                    teamHighlights[player]:Destroy()
+                    teamHighlights[player] = nil
+                end
+            end
+        end
+    end)
+end
+
+local function stopAllHighlighting()
+    normalHighlightEnabled = false
+    teamHighlightEnabled = false
+    if heartbeatConnection then
+        heartbeatConnection:Disconnect()
+        heartbeatConnection = nil
+    end
+    removeAllHighlights(normalHighlights)
+    removeAllHighlights(teamHighlights)
+end
+
+local ESPEnabled = false
+local ESPColor = Color3.new(1, 1, 1)
+local TextSize = 14
+local ESPObjects = {}
+
+local function createESP(player)
+    if player == game.Players.LocalPlayer then return end
+    local Billboard = Instance.new("BillboardGui")
+    Billboard.Name = "NameESP"
+    Billboard.Size = UDim2.new(0, 100, 0, 40)
+    Billboard.Adornee = player.Character and player.Character:FindFirstChild("Head")
+    Billboard.AlwaysOnTop = true
+    Billboard.StudsOffset = Vector3.new(0, 2, 0)
+
+    local NameText = Instance.new("TextLabel", Billboard)
+    NameText.Size = UDim2.new(1, 0, 1, 0)
+    NameText.BackgroundTransparency = 1
+    NameText.Text = player.DisplayName .. " (" .. player.Name .. ")"
+    NameText.TextColor3 = ESPColor
+    NameText.TextSize = TextSize
+    NameText.Font = Enum.Font.SourceSansBold
+
+    Billboard.Parent = player.Character:FindFirstChild("Head")
+    ESPObjects[player] = Billboard
+end
+
+local function removeESP(player)
+    if ESPObjects[player] then
+        ESPObjects[player]:Destroy()
+        ESPObjects[player] = nil
+    end
+end
+
+local function updateESPSettings()
+    for player, gui in pairs(ESPObjects) do
+        if gui and gui:FindFirstChildOfClass("TextLabel") then
+            gui.TextLabel.TextColor3 = ESPColor
+            gui.TextLabel.TextSize = TextSize
+        end
+    end
+end
+
+local function toggleESP(state)
+    ESPEnabled = state
+    if ESPEnabled then
+        for _, player in pairs(game.Players:GetPlayers()) do
+            if player.Character and player.Character:FindFirstChild("Head") then
+                createESP(player)
+            end
+        end
+    else
+        for _, player in pairs(game.Players:GetPlayers()) do
+            removeESP(player)
+        end
+    end
+end
+
+game.Players.PlayerAdded:Connect(function(player)
+    player.CharacterAdded:Connect(function()
+        wait(1)
+        if ESPEnabled then
+            createESP(player)
+        end
+    end)
+end)
+
+	local rs = game:GetService("RunService")
+	
+	local loopwsandjp = false
+	local ws = 16
+	local jp = 50
+	
+
+	task.spawn(function()
+		rs.RenderStepped:Connect(function()
+			if loopwsandjp then
+				if game.Players.LocalPlayer.Character then
+					if game.Players.LocalPlayer.Character:FindFirstChild("Humanoid") then
+						game.Players.LocalPlayer.Character.Humanoid.WalkSpeed = ws
+						game.Players.LocalPlayer.Character.Humanoid.JumpPower = jp
+					end
+				end
+			end
+		end)
+	end)
+
+local Message = function(_Title, _Text, Time)
+    game:GetService("StarterGui"):SetCore("SendNotification", {Title = _Title, Text = _Text, Duration = Time})
+end
+
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
+
+local Clip = true
+local Noclipping = nil
+local floatName = "FloatingName"
+
+local function noclip()
+    Clip = false
+    wait(0.1)
+    local function NoclipLoop()
+        if Clip == false and Players.LocalPlayer.Character ~= nil then
+            for _, child in pairs(Players.LocalPlayer.Character:GetDescendants()) do
+                if child:IsA("BasePart") and child.CanCollide == true and child.Name ~= floatName then
+                    child.CanCollide = false
+                end
+            end
+        end
+    end
+    Noclipping = RunService.Stepped:Connect(NoclipLoop)
+end
+
+local function clip()
+    if Noclipping then
+        Noclipping:Disconnect()
+    end
+    Clip = true
+end
+
+getgenv().HitboxSize = 10
+getgenv().HitboxTransparency = 0.9
+
+
+getgenv().HitboxStatus = false
+getgenv().TeamCheck = false
+getgenv().FriendCheck = false
+
+local Library = loadstring(game:HttpGet("https://raw.githubusercontent.com/kingMesterd/Dark_Shadow/refs/heads/main/KavoUi"))()
+local Window = Library.CreateLib("KingMesterdV3 Hub", "Ocean")
+
+local Tab1 = Window:NewTab("Player")
+local Tab1Section = Tab1:NewSection("Players")
+
+game:GetService("StarterGui"):SetCore("SendNotification", { 
+Title = "KING MESTERD V3";
+Text = "By Dark_Shadow/ArkyWra";
+Icon = "rbxassetid://14866977891"})
+Duration = 7; 
+
+local ToggleGui = Instance.new("ScreenGui")
+local Toggle = Instance.new("TextButton")
+
+ToggleGui.Name = "ToggleGui_HE"
+ToggleGui.Parent = game.CoreGui
+
+Toggle.Name = "Toggle"
+Toggle.Parent = ToggleGui
+Toggle.BackgroundColor3 = Color3.fromRGB(24, 24, 24)
+Toggle.BackgroundTransparency = 0.660
+Toggle.Position = UDim2.new(0, 0, 0.454706937, 0)
+Toggle.Size = UDim2.new(0.0650164187, 0, 0.0888099447, 0)
+Toggle.Font = Enum.Font.SourceSans
+Toggle.Text = "Toggle"
+Toggle.TextScaled = true
+Toggle.TextColor3 = Color3.fromRGB(5, 255, 193)
+Toggle.TextSize = 30.000
+Toggle.TextXAlignment = Enum.TextXAlignment.Left
+Toggle.Active = true
+Toggle.Draggable = true
+Toggle.MouseButton1Click:connect(function()
+    Library:ToggleUI()
+end)
+
+Tab1Section:NewTextBox("WalkSpeed", "WalkSpeed", function(speed)
+	local lp = game:GetService("Players").LocalPlayer
+			local char = lp.Character
+			if not char then return end
+			local hu = char:FindFirstChildOfClass("Humanoid")
+			if not hu then return end
+			hu.WalkSpeed = tonumber(speed) or 16
+			Message("Walkspeed set.", "You Change your WalkSpeed", 2)
+			ws = tonumber(speed) or 16
+end)
+
+Tab1Section:NewButton("Default WalkSpeed", "Default WalkSpeed", function()
+    game.Players.LocalPlayer.Character.Humanoid.WalkSpeed = 16
+end)
+
+Tab1Section:NewTextBox("JumpPower", "JumpPower", function(Jump)
+	local lp = game:GetService("Players").LocalPlayer
+			local char = lp.Character
+			if not char then return end
+			local hu = char:FindFirstChildOfClass("Humanoid")
+			if not hu then return end
+			hu.JumpPower = tonumber(Jump) or 16
+			Message("JumpPower set.", "You Change your JumpPower", 2)
+			jp = tonumber(Jump) or 16
+end)
+
+Tab1Section:NewButton("Default JumpPower", "Default JumpPower", function()
+    game.Players.LocalPlayer.Character.Humanoid.JumpPower = 50
+end)
+
+Tab1Section:NewTextBox("Fov Change", "Fov Change", function(F)
+	game.Workspace.CurrentCamera.FieldOfView = F
+end)
+
+Tab1Section:NewButton("Default Fov", "Default Fov", function()
+   game.Workspace.CurrentCamera.FieldOfView = 70
+end)
+
+Tab1Section:NewToggle("Loop WalkSpeed And JumpPower", "Loop", function(state)
+        loopwsandjp = state
+end)
+
+Tab1Section:NewToggle("NoClip", "Universal NoClip", function(state)
+    if state then
+        noclip()
+    else
+        clip()
+    end
+end)
+
+Tab1Section:NewButton("Click to tp item", "Click to tp", function()
+    mouse = game.Players.LocalPlayer:GetMouse()
+tool = Instance.new("Tool")
+tool.RequiresHandle = false
+tool.Name = "Click TP"
+tool.Activated:connect(function()
+local pos = mouse.Hit+Vector3.new(0,2.5,0)
+pos = CFrame.new(pos.X,pos.Y,pos.Z)
+game.Players.LocalPlayer.Character.HumanoidRootPart.CFrame = pos
+end)
+tool.Parent = game.Players.LocalPlayer.Backpack
+end)
+
+local infiniteJumpEnabled = false
+local connection
+
+Tab1Section:NewToggle("Infinite Jump", "Toggle infinite jump on or off", function(state)
+    infiniteJumpEnabled = state
+    if state then
+        print("Infinite Jump Enabled")
+        connection = game:GetService("UserInputService").JumpRequest:Connect(function()
+            if infiniteJumpEnabled then
+                local player = game:GetService("Players").LocalPlayer
+                if player and player.Character and player.Character:FindFirstChild("Humanoid") then
+                    player.Character.Humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
+                end
+            end
+        end)
+    else
+        print("Infinite Jump Disabled")
+        if connection then
+            connection:Disconnect()
+            connection = nil
+        end
+    end
+end)
+
+local xrayEnabled = false
+local originalTransparency = {}
+
+Tab1Section:NewToggle("X-Ray", "Toggle X-Ray Vision", function(state)
+    xrayEnabled = state
+    for _, obj in pairs(game.Workspace:GetDescendants()) do
+        if obj:IsA("BasePart") and not obj:IsDescendantOf(game.Players.LocalPlayer.Character) then
+            if xrayEnabled then
+                if not originalTransparency[obj] then
+                    originalTransparency[obj] = obj.Transparency
+                end
+                obj.Transparency = 0.8
+            else
+                if originalTransparency[obj] then
+                    obj.Transparency = originalTransparency[obj]
+                end
+            end
+        end
+    end
+end)
+
+local Tab1Section = Tab1:NewSection("Esp")
+
+Tab1Section:NewToggle("Highlight Player", "Toggle player highlight", function(state)
+    normalHighlightEnabled = state
+    if state then
+        startTracking()
+    else
+        removeAllHighlights(normalHighlights)
+    end
+end)
+
+Tab1Section:NewSlider("Highlight Transparency", "Normal highlight transparency", 100, 0, function(s)
+    normalHighlightTransparency = s / 100
+    for _, highlight in pairs(normalHighlights) do
+        if highlight:IsA("Highlight") then
+            highlight.FillTransparency = normalHighlightTransparency
+            highlight.OutlineTransparency = normalHighlightTransparency
+        end
+    end
+end)
+
+task.delay(0.1, function()
+    for _, slider in pairs(Tab1Section.Items) do
+        if slider.Title == "Highlight Transparency" then
+            slider:Set(60)
+        end
+    end
+end)
+
+Tab1Section:NewColorPicker("Highlight Color", "Choose highlight color", normalHighlightColor, function(color)
+    normalHighlightColor = color
+    for _, highlight in pairs(normalHighlights) do
+        if highlight:IsA("Highlight") then
+            highlight.FillColor = normalHighlightColor
+        end
+    end
+end)
+
+Tab1Section:NewToggle("Team-Base Highlight", "Highlight using team colors", function(state)
+    teamHighlightEnabled = state
+    if state then
+        startTracking()
+    else
+        removeAllHighlights(teamHighlights)
+    end
+end)
+
+Tab1Section:NewSlider("Team-Base Transparency", "Set team color highlight transparency", 100, 0, function(s)
+    teamHighlightTransparency = s / 100
+    for _, highlight in pairs(teamHighlights) do
+        if highlight:IsA("Highlight") then
+            highlight.FillTransparency = teamHighlightTransparency
+            highlight.OutlineTransparency = teamHighlightTransparency
+        end
+    end
+end)
+
+task.delay(0.1, function()
+    for _, slider in pairs(Tab1Section.Items) do
+        if slider.Title == "Team-Base Transparency" then
+            slider:Set(60)
+        end
+    end
+end)
+
+Tab1Section:NewToggle("Name ESP", "Toggles the Name ESP", function(state)
+    toggleESP(state)
+end)
+
+Tab1Section:NewSlider("Text Size", "Resize ESP text", 30, 10, function(size)
+    TextSize = size
+    updateESPSettings()
+end)
+
+Tab1Section:NewColorPicker("ESP Color", "Pick name color", Color3.new(1, 1, 1), function(color)
+    ESPColor = color
+    updateESPSettings()
+end)
+
+local Tab1Section = Tab1:NewSection("Hitbox")
+
+Tab1Section:NewTextBox("Hitbox", "Increase Range", function(value)
+	getgenv().HitboxSize = value
+end)
+
+Tab1Section:NewTextBox("Hitbox Transparency", "Increase Range", function(number)
+	getgenv().HitboxTransparency = number
+end)
+
+Tab1Section:NewToggle("HXStatus", "Increase Range", function(state)
+    if state then
+        getgenv().HitboxStatus = state
+    game:GetService('RunService').RenderStepped:connect(function()
+		if HitboxStatus == true and TeamCheck == false and FriendCheck == false then
+			for i,v in next, game:GetService('Players'):GetPlayers() do
+				if v.Name ~= game:GetService('Players').LocalPlayer.Name then
+					pcall(function()
+						v.Character.HumanoidRootPart.Size = Vector3.new(HitboxSize, HitboxSize, HitboxSize)
+						v.Character.HumanoidRootPart.Transparency = HitboxTransparency
+						v.Character.HumanoidRootPart.BrickColor = BrickColor.new("Really black")
+						v.Character.HumanoidRootPart.Material = "Neon"
+						v.Character.HumanoidRootPart.CanCollide = false
+					end)
+				end
+			end
+        elseif HitboxStatus == true and TeamCheck == false and FriendCheck == true then
+            for i,v in next, game:GetService('Players'):GetPlayers() do
+                for i2,v2 in pairs(game:GetService('Players'):GetChildren()) do
+                    if v.Name ~= game:GetService('Players').LocalPlayer.Name and not v2:IsFriendsWith(game:GetService('Players').LocalPlayer.UserId) then
+                        pcall(function()
+                            v.Character.HumanoidRootPart.Size = Vector3.new(HitboxSize, HitboxSize, HitboxSize)
+                            v.Character.HumanoidRootPart.Transparency = HitboxTransparency
+                            v.Character.HumanoidRootPart.BrickColor = BrickColor.new("Really black")
+                            v.Character.HumanoidRootPart.Material = "Neon"
+                            v.Character.HumanoidRootPart.CanCollide = false
+                        end)
+                    end
+                end
+			end
+        elseif HitboxStatus == true and TeamCheck == true and FriendCheck == false then
+            for i,v in next, game:GetService('Players'):GetPlayers() do
+				if game:GetService('Players').LocalPlayer.Team ~= v.Team then
+					pcall(function()
+						v.Character.HumanoidRootPart.Size = Vector3.new(HitboxSize, HitboxSize, HitboxSize)
+						v.Character.HumanoidRootPart.Transparency = HitboxTransparency
+						v.Character.HumanoidRootPart.BrickColor = BrickColor.new("Really black")
+						v.Character.HumanoidRootPart.Material = "Neon"
+						v.Character.HumanoidRootPart.CanCollide = false
+					end)
+				end
+			end
+        elseif HitboxStatus == true and TeamCheck == true and FriendCheck == true then
+            for i,v in next, game:GetService('Players'):GetPlayers() do
+				if game:GetService('Players').LocalPlayer.Team ~= v.Team and not game:GetService('Players'):IsFriendsWith(UserId) then
+					pcall(function()
+						v.Character.HumanoidRootPart.Size = Vector3.new(HitboxSize, HitboxSize, HitboxSize)
+						v.Character.HumanoidRootPart.Transparency = HitboxTransparency
+						v.Character.HumanoidRootPart.BrickColor = BrickColor.new("Really black")
+						v.Character.HumanoidRootPart.Material = "Neon"
+						v.Character.HumanoidRootPart.CanCollide = false
+					end)
+				end
+            end
+    else
+        for i,v in next, game:GetService('Players'):GetPlayers() do
+				if v.Name ~= game:GetService('Players').LocalPlayer.Name then
+					pcall(function()
+						v.Character.HumanoidRootPart.Size = Vector3.new(2,2,1)
+						v.Character.HumanoidRootPart.Transparency = 1
+						v.Character.HumanoidRootPart.BrickColor = BrickColor.new("Medium stone grey")
+						v.Character.HumanoidRootPart.Material = "Plastic"
+						v.Character.HumanoidRootPart.CanCollide = false
+					end)
+				end
+			end
+		end
+	end)
+    end
+end)
+
+local TabNil = Window:NewTab("Troll")
+local TabNilSection = TabNil:NewSection("Fling Player")
+
+TabNilSection:NewTextBox("Fling Player", "Type Username/Displayname", function(txt)
+    inputTargetName = txt
+    local targetPlayer = GetPlayer(inputTargetName)
+    if targetPlayer then
+        Message("Player Found", "Username: " .. targetPlayer.Name .. "\nDisplayname: " .. targetPlayer.DisplayName, 5)
+    else
+        Message("Error", "No player matches '" .. txt .. "'", 5)
+    end
+end)
+
+TabNilSection:NewButton("Fling Player", "Attempts to fling selected player", function()
+    if AntiFlingConnection then
+        return Message("Error", "Turn off Anti-Fling before using Fling Player", 5)
+    end
+    local targetPlayer = GetPlayer(inputTargetName)
+    if not targetPlayer then
+        return Message("Error", "No player selected or player not found", 5)
+    end
+    if not TargetCanCollide(targetPlayer) then
+        return Message("Error", "Player can't collide, fling aborted", 5)
+    end
+    SkidFling(targetPlayer)
+end)
+
+TabNilSection:NewToggle("Anti-Fling", "Prevents being flung by exploiters", function(state)
+    if state then
+        startAntiFling()
+        Message("Notice", "Anti-Fling Activated", 3)
+    else
+        stopAntiFling()
+        Message("Notice", "Anti-Fling Deactivated", 3)
+    end
+end)
+
+local TabNilSection = TabNil:NewSection("Instruction: If you're gonna fling someone turn off Anti Fling")
+
+local Tab2 = Window:NewTab("Main")
+local Tab2Section = Tab2:NewSection("Main")
+
+Tab2Section:NewButton("Spectate Gui", "Spectate player universal", function()
+    loadstring(game:HttpGet("https://raw.githubusercontent.com/kingMesterd/Dark_Shadow/main/Spectate%20Script"))()
+end)
+
+Tab2Section:NewButton("FLY GUI", "Fly script", function()
+    loadstring(game:HttpGet("https://raw.githubusercontent.com/kingMesterd/Dark_Shadow/main/Fly%20script"))()
+end)
+
+Tab2Section:NewButton("Tp to player Gui", "Teleport to player Gui", function()
+    loadstring(game:HttpGet("https://raw.githubusercontent.com/kingMesterd/Dark_Shadow/main/Tp%20made%20by%20arky%20script"))()
+end)
+
+Tab2Section:NewButton("Fling Touch", "ButtonInfo", function()
+    loadstring(game:HttpGet("https://raw.githubusercontent.com/kingMesterd/Dark_Shadow/refs/heads/main/Fling"))()
+end)
+
+Tab2Section:NewButton("FeEmote", "Free Emote", function()
+    loadstring(game:HttpGet("https://raw.githubusercontent.com/kingMesterd/Dark_Shadow/refs/heads/main/FeEmote"))()
+end)
+
+Tab2Section:NewButton("Infinite Yield", "Infinite Yield", function()
+    loadstring(game:HttpGet("https://raw.githubusercontent.com/EdgeIY/infiniteyield/master/source"))()
+end)
+
+Tab2Section:NewButton("Rejoin Server", "Teleports you back into the same game", function()
+    local TeleportService = game:GetService("TeleportService")
+    local Players = game:GetService("Players")
+    local player = Players.LocalPlayer
+
+    TeleportService:Teleport(game.PlaceId, player)
+end)
+
+local Tab5 = Window:NewTab("Save Config")
+local Tab5Section = Tab5:NewSection("Save Config")
+
+local HttpService = game:GetService("HttpService")
+local StarterGui = game:GetService("StarterGui")
+local ConfigFileName = "KingMesterdV3 Saved.json"
+
+local function showMessage(title, text, time)
+    pcall(function()
+        StarterGui:SetCore("SendNotification", {
+            Title = title,
+            Text = text,
+            Duration = time
+        })
+    end)
+end
+
+local function saveSettings()
+    local config = {
+        WalkSpeed = ws,
+        JumpPower = jp,
+        LoopWSJP = loopwsandjp,
+        NoClip = not Clip,
+        InfJump = infiniteJumpEnabled,
+        Xray = xrayEnabled,
+        NormalHighlight = normalHighlightEnabled,
+        NormalTransparency = normalHighlightTransparency,
+        NormalColor = {r = normalHighlightColor.R, g = normalHighlightColor.G, b = normalHighlightColor.B},
+        TeamHighlight = teamHighlightEnabled,
+        TeamTransparency = teamHighlightTransparency,
+        NameESP = ESPEnabled,
+        TextSize = TextSize,
+        ESPColor = {r = ESPColor.R, g = ESPColor.G, b = ESPColor.B},
+        HitboxSize = getgenv().HitboxSize,
+        HitboxTransparency = getgenv().HitboxTransparency,
+        HitboxStatus = getgenv().HitboxStatus
+    }
+
+    local encoded = HttpService:JSONEncode(config)
+    writefile(ConfigFileName, encoded)
+    showMessage("KingMesterdV3", "Configuration Saved", 3)
+end
+
+local function loadSettings()
+    if not isfile(ConfigFileName) then return end
+    local config = HttpService:JSONDecode(readfile(ConfigFileName))
+
+    ws = config.WalkSpeed or 16
+    jp = config.JumpPower or 50
+    loopwsandjp = config.LoopWSJP or false
+    Clip = not config.NoClip
+    infiniteJumpEnabled = config.InfJump or false
+    xrayEnabled = config.Xray or false
+    normalHighlightEnabled = config.NormalHighlight or false
+    normalHighlightTransparency = config.NormalTransparency or 0.6
+    normalHighlightColor = Color3.new(config.NormalColor.r, config.NormalColor.g, config.NormalColor.b)
+    teamHighlightEnabled = config.TeamHighlight or false
+    teamHighlightTransparency = config.TeamTransparency or 0.6
+    ESPEnabled = config.NameESP or false
+    TextSize = config.TextSize or 14
+    ESPColor = Color3.new(config.ESPColor.r, config.ESPColor.g, config.ESPColor.b)
+    getgenv().HitboxSize = config.HitboxSize or 10
+    getgenv().HitboxTransparency = config.HitboxTransparency or 0.9
+    getgenv().HitboxStatus = config.HitboxStatus or false
+
+    if game.Players.LocalPlayer.Character and game.Players.LocalPlayer.Character:FindFirstChild("Humanoid") then
+        game.Players.LocalPlayer.Character.Humanoid.WalkSpeed = ws
+        game.Players.LocalPlayer.Character.Humanoid.JumpPower = jp
+    end
+
+    if not Clip then noclip() else clip() end
+
+    if infiniteJumpEnabled and not connection then
+        connection = game:GetService("UserInputService").JumpRequest:Connect(function()
+            if infiniteJumpEnabled then
+                local player = game.Players.LocalPlayer
+                if player and player.Character and player.Character:FindFirstChild("Humanoid") then
+                    player.Character.Humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
+                end
+            end
+        end)
+    end
+
+    if xrayEnabled then
+        for _, obj in pairs(workspace:GetDescendants()) do
+            if obj:IsA("BasePart") and not obj:IsDescendantOf(game.Players.LocalPlayer.Character) then
+                obj.Transparency = 0.8
+            end
+        end
+    end
+
+    if normalHighlightEnabled or teamHighlightEnabled then
+        startTracking()
+    end
+
+    if ESPEnabled then
+        toggleESP(true)
+    end
+
+    showMessage("KingMesterdV3", "Configuration Loaded", 3)
+end
+
+local function deleteSettings()
+    if isfile(ConfigFileName) then
+        delfile(ConfigFileName)
+        showMessage("KingMesterdV3", "Configuration Deleted", 3)
+    end
+end
+
+Tab5Section:NewButton("Auto Save Configure", "Save Configure", function()
+    saveSettings()
+end)
+
+Tab5Section:NewButton("Delete Saved Configure", "Delete Save Config", function()
+    deleteSettings()
+end)
+
+local Tab3 = Window:NewTab("Destroy Toggle")
+local Tab3Section = Tab3:NewSection("Destroy Toggle")
+
+Tab3Section:NewButton("Destroy Toggle", "Destroy Toggle", function()
+    Toggle:Destroy()
+end)
+
+local Credits = Window:NewTab("Credits")
+local CreditsSection = Credits:NewSection("Credits")
+
+CreditsSection:NewLabel("Created by Dark_Shadow/ArkyWra")
+
+loadSettings()
