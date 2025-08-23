@@ -1,0 +1,103 @@
+local Library = loadstring(game:HttpGet("https://raw.githubusercontent.com/kingMesterd/Dark_Shadow/refs/heads/main/KavoUi"))()
+local Window = Library.CreateLib("KingMesterdV3 Hub", "Ocean")
+
+local Tab1 = Window:NewTab("Player")
+local Tab1Section = Tab1:NewSection("Players")
+
+game:GetService("StarterGui"):SetCore("SendNotification",{ 
+    Title = "KING MESTERD V3",
+    Text = "By Dark_Shadow/ArkyWra",
+    Icon = "rbxassetid://14866977891",
+    Duration = 7
+}) 
+
+local ToggleGui = Instance.new("ScreenGui")
+local Toggle = Instance.new("TextButton")
+ToggleGui.Name = "ToggleGui_HE"
+ToggleGui.Parent = game.CoreGui
+Toggle.Name = "Toggle"
+Toggle.Parent = ToggleGui
+Toggle.BackgroundColor3 = Color3.fromRGB(24, 24, 24)
+Toggle.BackgroundTransparency = 0.66
+Toggle.Position = UDim2.new(0, 0, 0.45, 0)
+Toggle.Size = UDim2.new(0.065, 0, 0.088, 0)
+Toggle.Font = Enum.Font.SourceSans
+Toggle.Text = "Toggle"
+Toggle.TextScaled = true
+Toggle.TextColor3 = Color3.fromRGB(5, 255, 193)
+Toggle.TextSize = 30
+Toggle.TextXAlignment = Enum.TextXAlignment.Left
+Toggle.Active = true
+Toggle.Draggable = true
+Toggle.MouseButton1Click:Connect(function()
+    Library:ToggleUI()
+end)
+
+local Players = game:GetService("Players")
+local LocalPlayer = Players.LocalPlayer
+local targetName = nil
+local bringing = false
+
+local function FindPlayer(input)
+    if not input or input == "" then return nil end
+    input = string.lower(input)
+    for _,plr in ipairs(Players:GetPlayers()) do
+        if string.find(string.lower(plr.Name), input) or string.find(string.lower(plr.DisplayName), input) then
+            return plr
+        end
+    end
+    return nil
+end
+
+Tab1Section:NewTextBox("Input Username/Displayname","TextboxInfo",function(txt)
+    targetName = txt
+    local found = FindPlayer(targetName)
+    if found then
+        game:GetService("StarterGui"):SetCore("SendNotification",{ 
+            Title = "Player Found",
+            Text = "Name: "..found.Name.."\nDisplayName: "..found.DisplayName,
+            Duration = 5
+        }) 
+    else
+        game:GetService("StarterGui"):SetCore("SendNotification",{ 
+            Title = "Player Not Found",
+            Text = "No player matches: "..targetName,
+            Duration = 5
+        }) 
+    end
+end)
+
+Tab1Section:NewButton("Bring Player","ButtonInfo",function()
+    if bringing then
+        bringing = false
+        game:GetService("StarterGui"):SetCore("SendNotification",{ 
+            Title = "Bring Stopped",
+            Text = "Stopped bringing player.",
+            Duration = 5
+        }) 
+        return
+    end
+    
+    local target = FindPlayer(targetName)
+    if target and target.Character and target.Character:FindFirstChild("HumanoidRootPart") then
+        bringing = true
+        game:GetService("StarterGui"):SetCore("SendNotification",{ 
+            Title = "Bringing Player",
+            Text = "Name: "..target.Name.."\nDisplayName: "..target.DisplayName,
+            Duration = 5
+        }) 
+        task.spawn(function()
+            while bringing and task.wait(0.1) do
+                if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") and target.Character and target.Character:FindFirstChild("HumanoidRootPart") then
+                    target.Character.HumanoidRootPart.CFrame = LocalPlayer.Character.HumanoidRootPart.CFrame * CFrame.new(2,0,0)
+                end
+            end
+        end)
+    else
+        game:GetService("StarterGui"):SetCore("SendNotification",{ 
+            Title = "Bring Failed",
+            Text = "Target not found or missing character.",
+            Duration = 5
+        }) 
+    end
+end)
