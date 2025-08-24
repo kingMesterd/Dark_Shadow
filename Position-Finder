@@ -1,1 +1,56 @@
-Setclipboard(tostring(game.Players.LocalPlayer.Character.HumanoidRootPart.Position))
+-- LocalScript
+
+local Players = game:GetService("Players")
+local LocalPlayer = Players.LocalPlayer
+
+local ScreenGui = Instance.new("ScreenGui", game.CoreGui)
+local Frame = Instance.new("Frame", ScreenGui)
+Frame.Size = UDim2.new(0, 250, 0, 100)
+Frame.Position = UDim2.new(0.5, -125, 0.5, -50)
+Frame.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
+Frame.Active = true
+Frame.Draggable = true
+
+local UICorner = Instance.new("UICorner", Frame)
+UICorner.CornerRadius = UDim.new(0, 12)
+
+local PositionLabel = Instance.new("TextLabel", Frame)
+PositionLabel.Size = UDim2.new(1, -20, 0, 40)
+PositionLabel.Position = UDim2.new(0, 10, 0, 10)
+PositionLabel.BackgroundTransparency = 1
+PositionLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+PositionLabel.Font = Enum.Font.SourceSansBold
+PositionLabel.TextSize = 18
+PositionLabel.Text = "Position: Loading..."
+
+local CopyButton = Instance.new("TextButton", Frame)
+CopyButton.Size = UDim2.new(0.6, 0, 0, 30)
+CopyButton.Position = UDim2.new(0.2, 0, 0.6, 0)
+CopyButton.BackgroundColor3 = Color3.fromRGB(55, 55, 55)
+CopyButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+CopyButton.Font = Enum.Font.SourceSansBold
+CopyButton.TextSize = 16
+CopyButton.Text = "Copy Position"
+
+Instance.new("UICorner", CopyButton).CornerRadius = UDim.new(0, 8)
+
+local function updatePosition()
+    local char = LocalPlayer.Character
+    if char and char:FindFirstChild("HumanoidRootPart") then
+        local pos = char.HumanoidRootPart.Position
+        PositionLabel.Text = string.format("Position: %.2f, %.2f, %.2f", pos.X, pos.Y, pos.Z)
+        return pos
+    end
+end
+
+CopyButton.MouseButton1Click:Connect(function()
+    local pos = updatePosition()
+    if pos then
+        setclipboard(string.format("%.2f, %.2f, %.2f", pos.X, pos.Y, pos.Z))
+        CopyButton.Text = "Copied!"
+        task.wait(1.5)
+        CopyButton.Text = "Copy Position"
+    end
+end)
+
+game:GetService("RunService").RenderStepped:Connect(updatePosition)
