@@ -8,7 +8,7 @@ local AutoFarm = false
 local GodMode = false
 local AntiAFK = false
 
-local SafeCF = CFrame.new(-94.54, 303.80, 0.57)
+local SafeCF = CFrame.new(-95.54, 303.80, 0.57)
 
 local function screenRightAboveCenterClick(times)
     local cam = workspace.CurrentCamera
@@ -72,8 +72,6 @@ end)
 LocalPlayer.CharacterAdded:Connect(function(char)
     if AutoFarm then
         AutoFarm = false
-        PunchBtn.Text = "Auto Punch: OFF"
-        PunchBtn.BackgroundColor3 = Color3.fromRGB(170,0,0)
 
         task.spawn(function()
             repeat task.wait() until char:FindFirstChild("HumanoidRootPart")
@@ -85,13 +83,12 @@ LocalPlayer.CharacterAdded:Connect(function(char)
             char.HumanoidRootPart.CFrame = SafeCF
             
             -- Step 3: Wait 4 seconds
-            task.wait(2)
+            task.wait(3)
             
             -- Step 4: Reactivate AutoFarm and auto click again
             AutoFarm = true
-            PunchBtn.Text = "Auto Punch: ON"
-            PunchBtn.BackgroundColor3 = Color3.fromRGB(0,170,0)
-            screenRightAboveCenterClick(1)
+          
+screenRightAboveCenterClick(1)
         end)
     end
 end)
