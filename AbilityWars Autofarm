@@ -1,190 +1,204 @@
-local RS = game:GetService("ReplicatedStorage")
-local Players = game:GetService("Players")
-local LocalPlayer = Players.LocalPlayer
-local VIM = game:GetService("VirtualInputManager")
-local VirtualUser = game:GetService("VirtualUser")
+local RS = game:GetService("ReplicatedStorage")  
+local Players = game:GetService("Players")  
+local LocalPlayer = Players.LocalPlayer  
+local VIM = game:GetService("VirtualInputManager")  
+local VirtualUser = game:GetService("VirtualUser")  
+  
+local AutoFarm = false  
+local GodMode = false  
+local AntiAFK = false  
+local AutoReset = false
+  
+local SafeCF = CFrame.new(-94.54, 303.80, 0.57)  
+  
+local function screenRightAboveCenterClick(times)  
+    local cam = workspace.CurrentCamera  
+    if not cam then return end  
+    local vp = cam.ViewportSize  
+    local cx = math.floor(vp.X * 0.85)  
+    local cy = math.floor(vp.Y * 0.4)  
+    times = times or 1  
+    for _ = 1, times do  
+        VIM:SendMouseButtonEvent(cx, cy, 0, true, game, 0)  
+        VIM:SendMouseButtonEvent(cx, cy, 0, false, game, 0)  
+    end  
+end  
+  
+local function isAlive(plr)  
+    if not (plr and plr.Character) then return false end  
+    local hum = plr.Character:FindFirstChildOfClass("Humanoid")  
+    local hrp = plr.Character:FindFirstChild("HumanoidRootPart")  
+    return hum and hum.Health > 0 and hrp ~= nil  
+end  
+  
+local function getNearestTarget()  
+    local myChar = LocalPlayer.Character  
+    local myHRP = myChar and myChar:FindFirstChild("HumanoidRootPart")  
+    if not myHRP then return nil end  
+    local nearest, dist = nil, math.huge  
+    for _, plr in ipairs(Players:GetPlayers()) do  
+        if plr ~= LocalPlayer and isAlive(plr) then  
+            local hrp = plr.Character.HumanoidRootPart  
+            local mag = (hrp.Position - myHRP.Position).Magnitude  
+            if mag < dist then  
+                dist = mag  
+                nearest = plr  
+            end  
+        end  
+    end  
+    return nearest  
+end  
+  
+local function punchPlayer(target)  
+    if not isAlive(target) then return end  
+    local myHRP = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")  
+    if not myHRP then return end  
+    myHRP.CFrame = target.Character.HumanoidRootPart.CFrame * CFrame.new(0, 0, 3)  
+    screenRightAboveCenterClick(1)  
+end  
+  
+task.spawn(function()  
+    while task.wait(0.25) do  
+        if AutoFarm and isAlive(LocalPlayer) then  
+            local target = getNearestTarget()  
+            if target then  
+                punchPlayer(target)  
+            end  
+        end  
+    end  
+end)  
+  
+LocalPlayer.CharacterAdded:Connect(function(char)  
+    if AutoFarm then  
+        AutoFarm = false  
+        
+task.spawn(function()  
+            repeat task.wait() until char:FindFirstChild("HumanoidRootPart")  
+            screenRightAboveCenterClick(1)  
+            char.HumanoidRootPart.CFrame = SafeCF  
+            task.wait(2)  
+            AutoFarm = true  
+            screenRightAboveCenterClick(1)  
+        end)  
+    end  
+end)  
+  
+task.spawn(function()  
+    while task.wait(1) do  
+        if GodMode then  
+            local char = LocalPlayer.Character  
+            if char and char:FindFirstChild("Humanoid") then  
+                char.Humanoid.Health = char.Humanoid.MaxHealth  
+            end  
+        end  
+    end  
+end)  
+  
+task.spawn(function()  
+    while task.wait(55) do  
+        if AntiAFK then  
+            VirtualUser:CaptureController()  
+            VirtualUser:ClickButton2(Vector2.new())  
+        end  
+    end  
+end)  
+  
+local ScreenGui = Instance.new("ScreenGui", game.CoreGui)  
+local Frame = Instance.new("Frame", ScreenGui)  
+Frame.Size = UDim2.new(0, 160, 0, 170)  
+Frame.Position = UDim2.new(0.8, 0, 0.4, 0)  
+Frame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)  
+Frame.Active = true  
+Frame.Draggable = true  
+  
+local PunchBtn = Instance.new("TextButton", Frame)  
+PunchBtn.Size = UDim2.new(1, -10, 0, 40)  
+PunchBtn.Position = UDim2.new(0, 5, 0, 5)  
+PunchBtn.BackgroundColor3 = Color3.fromRGB(50,50,50)  
+PunchBtn.TextColor3 = Color3.fromRGB(255,255,255)  
+PunchBtn.Font = Enum.Font.SourceSansBold  
+PunchBtn.TextSize = 18  
+PunchBtn.Text = "Auto Punch: OFF"  
+  
+PunchBtn.MouseButton1Click:Connect(function()  
+    AutoFarm = not AutoFarm  
+    if AutoFarm then  
+        PunchBtn.Text = "Auto Punch: ON"  
+        PunchBtn.BackgroundColor3 = Color3.fromRGB(0,170,0)  
+        local char = LocalPlayer.Character  
+        if char and char:FindFirstChild("HumanoidRootPart") then  
+            char.HumanoidRootPart.CFrame = SafeCF  
+        end  
+    else  
+        PunchBtn.Text = "Auto Punch: OFF"  
+        PunchBtn.BackgroundColor3 = Color3.fromRGB(170,0,0)  
+    end  
+end)  
+  
+local GodBtn = Instance.new("TextButton", Frame)  
+GodBtn.Size = UDim2.new(1, -10, 0, 40)  
+GodBtn.Position = UDim2.new(0, 5, 0, 45)  
+GodBtn.BackgroundColor3 = Color3.fromRGB(50,50,50)  
+GodBtn.TextColor3 = Color3.fromRGB(255,255,255)  
+GodBtn.Font = Enum.Font.SourceSansBold  
+GodBtn.TextSize = 18  
+GodBtn.Text = "God Mode: OFF"  
+  
+GodBtn.MouseButton1Click:Connect(function()  
+    GodMode = not GodMode  
+    if GodMode then  
+        GodBtn.Text = "God Mode: ON"  
+        GodBtn.BackgroundColor3 = Color3.fromRGB(0,170,0)  
+    else  
+        GodBtn.Text = "God Mode: OFF"  
+        GodBtn.BackgroundColor3 = Color3.fromRGB(170,0,0)  
+    end  
+end)  
+  
+local AfkBtn = Instance.new("TextButton", Frame)  
+AfkBtn.Size = UDim2.new(1, -10, 0, 40)  
+AfkBtn.Position = UDim2.new(0, 5, 0, 85)  
+AfkBtn.BackgroundColor3 = Color3.fromRGB(50,50,50)  
+AfkBtn.TextColor3 = Color3.fromRGB(255,255,255)  
+AfkBtn.Font = Enum.Font.SourceSansBold  
+AfkBtn.TextSize = 18  
+AfkBtn.Text = "Anti AFK: OFF"  
+  
+AfkBtn.MouseButton1Click:Connect(function()  
+    AntiAFK = not AntiAFK  
+    if AntiAFK then  
+        AfkBtn.Text = "Anti AFK: ON"  
+        AfkBtn.BackgroundColor3 = Color3.fromRGB(0,170,0)  
+    else  
+        AfkBtn.Text = "Anti AFK: OFF"  
+        AfkBtn.BackgroundColor3 = Color3.fromRGB(170,0,0)  
+    end  
+end)  
 
-local AutoFarm = false
-local GodMode = false
-local AntiAFK = false
+local ResetBtn = Instance.new("TextButton", Frame)
+ResetBtn.Size = UDim2.new(1, -10, 0, 40)
+ResetBtn.Position = UDim2.new(0, 5, 0, 125)
+ResetBtn.BackgroundColor3 = Color3.fromRGB(50,50,50)
+ResetBtn.TextColor3 = Color3.fromRGB(255,255,255)
+ResetBtn.Font = Enum.Font.SourceSansBold
+ResetBtn.TextSize = 18
+ResetBtn.Text = "Auto Reset: OFF"
 
-local SafeCF = CFrame.new(-95.54, 303.80, 0.57)
-
-local function screenRightAboveCenterClick(times)
-    local cam = workspace.CurrentCamera
-    if not cam then return end
-    local vp = cam.ViewportSize
-    local cx = math.floor(vp.X * 0.85)
-    local cy = math.floor(vp.Y * 0.4)
-    times = times or 1
-    for _ = 1, times do
-        VIM:SendMouseButtonEvent(cx, cy, 0, true, game, 0)
-        VIM:SendMouseButtonEvent(cx, cy, 0, false, game, 0)
-    end
-end
-
-local function isAlive(plr)
-    if not (plr and plr.Character) then return false end
-    local hum = plr.Character:FindFirstChildOfClass("Humanoid")
-    local hrp = plr.Character:FindFirstChild("HumanoidRootPart")
-    return hum and hum.Health > 0 and hrp ~= nil
-end
-
-local function getNearestTarget()
-    local myChar = LocalPlayer.Character
-    local myHRP = myChar and myChar:FindFirstChild("HumanoidRootPart")
-    if not myHRP then return nil end
-    local nearest, dist = nil, math.huge
-    for _, plr in ipairs(Players:GetPlayers()) do
-        if plr ~= LocalPlayer and isAlive(plr) then
-            local hrp = plr.Character.HumanoidRootPart
-            local mag = (hrp.Position - myHRP.Position).Magnitude
-            if mag < dist then
-                dist = mag
-                nearest = plr
-            end
-        end
-    end
-    return nearest
-end
-
-local function punchPlayer(target)
-    if not isAlive(target) then return end
-    local myHRP = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
-    if not myHRP then return end
-    myHRP.CFrame = target.Character.HumanoidRootPart.CFrame * CFrame.new(0, 0, 3)
-    screenRightAboveCenterClick(1)
-end
-
--- Main loop for auto punch
-task.spawn(function()
-    while task.wait(0.25) do
-        if AutoFarm and isAlive(LocalPlayer) then
-            local target = getNearestTarget()
-            if target then
-                punchPlayer(target)
-            end
-        end
-    end
-end)
-
--- Adjusted respawn handling for AutoFarm
-LocalPlayer.CharacterAdded:Connect(function(char)
-    if AutoFarm then
-        AutoFarm = false
-
-        task.spawn(function()
-            repeat task.wait() until char:FindFirstChild("HumanoidRootPart")
-            
-            -- Step 1: Auto click screen immediately after respawn
-            screenRightAboveCenterClick(1)
-            
-            -- Step 2: Teleport to desired area
-            char.HumanoidRootPart.CFrame = SafeCF
-            
-            -- Step 3: Wait 4 seconds
-            task.wait(3)
-            
-            -- Step 4: Reactivate AutoFarm and auto click again
-            AutoFarm = true
-          
-screenRightAboveCenterClick(1)
-        end)
-    end
-end)
-
--- God Mode loop
-task.spawn(function()
-    while task.wait(1) do
-        if GodMode then
-            local char = LocalPlayer.Character
-            if char and char:FindFirstChild("Humanoid") then
-                char.Humanoid.Health = char.Humanoid.MaxHealth
-            end
-        end
-    end
-end)
-
--- Anti AFK loop
-task.spawn(function()
-    while task.wait(55) do
-        if AntiAFK then
-            VirtualUser:CaptureController()
-            VirtualUser:ClickButton2(Vector2.new())
-        end
-    end
-end)
-
--- GUI
-local ScreenGui = Instance.new("ScreenGui", game.CoreGui)
-
-local Frame = Instance.new("Frame", ScreenGui)
-Frame.Size = UDim2.new(0, 160, 0, 130)
-Frame.Position = UDim2.new(0.8, 0, 0.4, 0)
-Frame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
-Frame.Active = true
-Frame.Draggable = true
-
-local PunchBtn = Instance.new("TextButton", Frame)
-PunchBtn.Size = UDim2.new(1, -10, 0, 40)
-PunchBtn.Position = UDim2.new(0, 5, 0, 5)
-PunchBtn.BackgroundColor3 = Color3.fromRGB(50,50,50)
-PunchBtn.TextColor3 = Color3.fromRGB(255,255,255)
-PunchBtn.Font = Enum.Font.SourceSansBold
-PunchBtn.TextSize = 18
-PunchBtn.Text = "Auto Punch: OFF"
-
-PunchBtn.MouseButton1Click:Connect(function()
-    AutoFarm = not AutoFarm
-    if AutoFarm then
-        PunchBtn.Text = "Auto Punch: ON"
-        PunchBtn.BackgroundColor3 = Color3.fromRGB(0,170,0)
-        local char = LocalPlayer.Character
-        if char and char:FindFirstChild("HumanoidRootPart") then
-            char.HumanoidRootPart.CFrame = SafeCF
-        end
+ResetBtn.MouseButton1Click:Connect(function()
+    AutoReset = not AutoReset
+    if AutoReset then
+        ResetBtn.Text = "Auto Reset: ON"
+        ResetBtn.BackgroundColor3 = Color3.fromRGB(0,170,0)
     else
-        PunchBtn.Text = "Auto Punch: OFF"
-        PunchBtn.BackgroundColor3 = Color3.fromRGB(170,0,0)
+        ResetBtn.Text = "Auto Reset: OFF"
+        ResetBtn.BackgroundColor3 = Color3.fromRGB(170,0,0)
     end
 end)
 
-local GodBtn = Instance.new("TextButton", Frame)
-GodBtn.Size = UDim2.new(1, -10, 0, 40)
-GodBtn.Position = UDim2.new(0, 5, 0, 45)
-GodBtn.BackgroundColor3 = Color3.fromRGB(50,50,50)
-GodBtn.TextColor3 = Color3.fromRGB(255,255,255)
-GodBtn.Font = Enum.Font.SourceSansBold
-GodBtn.TextSize = 18
-GodBtn.Text = "God Mode: OFF"
-
-GodBtn.MouseButton1Click:Connect(function()
-    GodMode = not GodMode
-    if GodMode then
-        GodBtn.Text = "God Mode: ON"
-        GodBtn.BackgroundColor3 = Color3.fromRGB(0,170,0)
-    else
-        GodBtn.Text = "God Mode: OFF"
-        GodBtn.BackgroundColor3 = Color3.fromRGB(170,0,0)
-    end
-end)
-
-local AfkBtn = Instance.new("TextButton", Frame)
-AfkBtn.Size = UDim2.new(1, -10, 0, 40)
-AfkBtn.Position = UDim2.new(0, 5, 0, 85)
-AfkBtn.BackgroundColor3 = Color3.fromRGB(50,50,50)
-AfkBtn.TextColor3 = Color3.fromRGB(255,255,255)
-AfkBtn.Font = Enum.Font.SourceSansBold
-AfkBtn.TextSize = 18
-AfkBtn.Text = "Anti AFK: OFF"
-
-AfkBtn.MouseButton1Click:Connect(function()
-    AntiAFK = not AntiAFK
-    if AntiAFK then
-        AfkBtn.Text = "Anti AFK: ON"
-        AfkBtn.BackgroundColor3 = Color3.fromRGB(0,170,0)
-    else
-        AfkBtn.Text = "Anti AFK: OFF"
-        AfkBtn.BackgroundColor3 = Color3.fromRGB(170,0,0)
+task.spawn(function()
+    while task.wait(40) do
+        if AutoReset and isAlive(LocalPlayer) then
+            LocalPlayer:LoadCharacter()
+        end
     end
 end)
