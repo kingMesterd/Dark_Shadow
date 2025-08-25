@@ -72,7 +72,7 @@ LocalPlayer.CharacterAdded:Connect(function(char)
     if AutoFarm then  
         AutoFarm = false  
         
-task.spawn(function()  
+        task.spawn(function()  
             repeat task.wait() until char:FindFirstChild("HumanoidRootPart")  
             screenRightAboveCenterClick(1)  
             char.HumanoidRootPart.CFrame = SafeCF  
@@ -195,10 +195,16 @@ ResetBtn.MouseButton1Click:Connect(function()
     end
 end)
 
+-- ✅ Auto Reset (kills you every 40s to trigger respawn)
 task.spawn(function()
-    while task.wait(40) do
+    while true do
         if AutoReset and isAlive(LocalPlayer) then
-            LocalPlayer:LoadCharacter()
+            task.wait(40)
+            if AutoReset and LocalPlayer.Character and LocalPlayer.Character:FindFirstChildOfClass("Humanoid") then
+                LocalPlayer.Character:FindFirstChildOfClass("Humanoid").Health = 0
+            end
+        else
+            task.wait(1)
         end
     end
 end)
