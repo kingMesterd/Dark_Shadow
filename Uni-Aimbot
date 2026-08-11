@@ -1,270 +1,1291 @@
+-- // Owner Panel - Complete Script
+-- // LocalScript in StarterPlayerScripts
+
 local Players = game:GetService("Players")
-local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
-local lp = Players.LocalPlayer
-local Mouse = lp:GetMouse()
+local RunService = game:GetService("RunService")
 
-_G.Aimbot = true
-_G.TeamCheck = true
-_G.WallCheck = false
-_G.Fov = 50
-_G.Strength = 1.0
+local Rayfield = loadstring(game:HttpGet("https://sirius.menu/rayfield"))()
 
-if _G.EliteLock then _G.EliteLock:Disconnect() end
-local old = game.CoreGui:FindFirstChild("d4vid_V24") or lp.PlayerGui:FindFirstChild("d4vid_V24")
-if old then old:Destroy() end
+local LocalPlayer = Players.LocalPlayer
+local Camera = workspace.CurrentCamera
+local PlayerGui = LocalPlayer:WaitForChild("PlayerGui")
 
-local sg = Instance.new("ScreenGui")
-sg.Name = "d4vid_V24"
-sg.Parent = game.CoreGui or lp.PlayerGui
-sg.IgnoreGuiInset = true
+-- =====================
+-- // HIGHLIGHT STATE
+-- =====================
+local HighlightEnabled = false
+local FillColor = Color3.fromRGB(255, 0, 0)
+local OutlineColor = Color3.fromRGB(255, 255, 255)
+local FillTransparency = 0.5
+local OutlineTransparency = 0
+local Highlights = {}
 
-local fovCircle = Instance.new("Frame", sg)
-fovCircle.AnchorPoint = Vector2.new(0.5, 0.5)
-fovCircle.BackgroundTransparency = 1
-local fovStroke = Instance.new("UIStroke", fovCircle)
-fovStroke.Thickness = 1.5
-Instance.new("UICorner", fovCircle).CornerRadius = UDim.new(1, 0)
+-- =====================
+-- // FLIGHT STATE
+-- =====================
+local FlightEnabled = false
+local FlightSpeed = 50
+local FlightConnection = nil
 
-local main = Instance.new("Frame", sg)
-main.Size = UDim2.new(0, 230, 0, 380)
-main.Position = UDim2.new(0.5, -115, 0.5, -190)
-main.BackgroundColor3 = Color3.fromRGB(5, 5, 5)
-Instance.new("UICorner", main).CornerRadius = UDim.new(0, 8)
-local mainStroke = Instance.new("UIStroke", main)
-mainStroke.Thickness = 2
+local MobileKeys = {
+	Forward = false, Back = false,
+	Left = false,    Right = false,
+	Up = false,      Down = false,
+}
 
-local dragging = false
-local dragStart
-local startPos
+local Keys = {
+	Up      = Enum.KeyCode.Space,
+	Down    = Enum.KeyCode.LeftControl,
+	Forward = Enum.KeyCode.W,
+	Back    = Enum.KeyCode.S,
+	Left    = Enum.KeyCode.A,
+	Right   = Enum.KeyCode.D,
+}
 
-main.InputBegan:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseButton1
-        or input.UserInputType == Enum.UserInputType.Touch then
+-- =====================
+-- // NOCLIP STATE
+-- =====================
+local NoclipEnabled = false
+local NoclipConnection = nil
 
-        dragging = true
-        dragStart = input.Position
-        startPos = main.Position
+-- =====================
+-- // COMBAT STATE
+-- =====================
+local AimAssistEnabled = false
+local AimAssistStrength = 0.1
+local AimAssistFOV = 100
+local ShowFOVCircle = true
+local TeamCheckEnabled = true
+local WallCheckEnabled = true
+local AimAssistConnection = nil
+_G.AimTarget = "Head"
 
-        input.Changed:Connect(function()
-            if input.UserInputState == Enum.UserInputState.End then
-                dragging = false
-            end
-        end)
-    end
-end)
+local FOVCircle = Drawing.new("Circle")
+FOVCircle.Visible = false
+FOVCircle.Radius = AimAssistFOV
+FOVCircle.Color = Color3.fromRGB(255, 255, 255)
+FOVCircle.Thickness = 1.5
+FOVCircle.Filled = false
+FOVCircle.NumSides = 64
 
-UserInputService.InputChanged:Connect(function(input)
-    if not dragging then return end
+-- =====================
+-- // MOBILE UI
+-- =====================
+local MobileGui = nil
 
-    if input.UserInputType == Enum.UserInputType.MouseMovement
-        or input.UserInputType == Enum.UserInputType.Touch then
-
-        local delta = input.Position - dragStart
-
-        main.Position = UDim2.new(
-            startPos.X.Scale,
-            startPos.X.Offset + delta.X,
-            startPos.Y.Scale,
-            startPos.Y.Offset + delta.Y
-        )
-    end
-end)
-
-_G.EliteLock = RunService.RenderStepped:Connect(function()
-    local cam = workspace.CurrentCamera
-    if not cam or not _G.Aimbot or not lp.Character then return end
-
-    local center = Vector2.new(cam.ViewportSize.X / 2, cam.ViewportSize.Y / 2)
-    local rainbow = Color3.fromHSV(tick() % 2 / 2, 1, 1)
-
-    mainStroke.Color = rainbow
-    fovStroke.Color = rainbow
-
-    fovCircle.Position = UDim2.new(0, center.X, 0, center.Y)
-    fovCircle.Size = UDim2.new(0, _G.Fov * 2, 0, _G.Fov * 2)
-
-    local target = nil
-    local closest = _G.Fov
-
-    for _, p in pairs(Players:GetPlayers()) do
-        if p ~= lp and p.Character then
-            local head = p.Character:FindFirstChild("Head")
-            local hum = p.Character:FindFirstChildOfClass("Humanoid")
-
-            if head and hum and hum.Health > 0 then
-                if _G.TeamCheck and p.Team == lp.Team then continue end
-
-                local screenPos, onScreen = cam:WorldToViewportPoint(head.Position)
-
-                if onScreen then
-                    local dist = (Vector2.new(screenPos.X, screenPos.Y) - center).Magnitude
-
-                    if dist < closest then
-                        if _G.WallCheck then
-                            local hit = cam:Raycast(
-                                cam.CFrame.Position,
-                                head.Position - cam.CFrame.Position
-                            )
-
-                            if hit and not hit.Instance:IsDescendantOf(p.Character) then
-                                continue
-                            end
-                        end
-
-                        closest = dist
-                        target = head
-                    end
-                end
-            end
-        end
-    end
-
-    if target then
-        local goal = CFrame.new(cam.CFrame.Position, target.Position)
-
-        if _G.Strength >= 0.9 then
-            cam.CFrame = goal
-        else
-            cam.CFrame = cam.CFrame:Lerp(goal, _G.Strength)
-        end
-    end
-end)
-
-local function createSlider(name, y, min, max, default, callback)
-    local label = Instance.new("TextLabel", main)
-    label.Size = UDim2.new(1, 0, 0, 20)
-    label.Position = UDim2.new(0, 0, 0, y)
-    label.Text = name .. ": " .. default
-    label.TextColor3 = Color3.new(1, 1, 1)
-    label.BackgroundTransparency = 1
-    label.Font = Enum.Font.Code
-
-    local bg = Instance.new("Frame", main)
-    bg.Size = UDim2.new(0.8, 0, 0, 4)
-    bg.Position = UDim2.new(0.1, 0, 0, y + 25)
-    bg.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
-
-    local fill = Instance.new("Frame", bg)
-    fill.Size = UDim2.new((default - min) / (max - min), 0, 1, 0)
-    fill.BackgroundColor3 = Color3.fromRGB(255, 0, 0)
-
-    local btn = Instance.new("TextButton", bg)
-    btn.Size = UDim2.new(0, 16, 0, 16)
-    btn.Position = UDim2.new(fill.Size.X.Scale, -8, 0.5, -8)
-    btn.Text = ""
-    btn.BackgroundColor3 = Color3.new(1, 1, 1)
-    Instance.new("UICorner", btn)
-
-    local drag = false
-
-    btn.InputBegan:Connect(function(i)
-        if i.UserInputType == Enum.UserInputType.Touch
-            or i.UserInputType == Enum.UserInputType.MouseButton1 then
-            drag = true
-        end
-    end)
-
-    UserInputService.InputEnded:Connect(function(i)
-        drag = false
-    end)
-
-    UserInputService.InputChanged:Connect(function(i)
-        if drag then
-            local pos = math.clamp(
-                (i.Position.X - bg.AbsolutePosition.X) / bg.AbsoluteSize.X,
-                0,
-                1
-            )
-
-            fill.Size = UDim2.new(pos, 0, 1, 0)
-            btn.Position = UDim2.new(pos, -8, 0.5, -8)
-
-            local val = min + (max - min) * pos
-            callback(val)
-
-            label.Text = name .. ": " ..
-                (val >= 0.9 and "INSTANT" or string.format("%.2f", val))
-        end
-    end)
+local function DestroyMobileGui()
+	if MobileGui then MobileGui:Destroy(); MobileGui = nil end
+	for k in pairs(MobileKeys) do MobileKeys[k] = false end
 end
 
-createSlider("FOV SIZE", 10, 10, 300, _G.Fov, function(v)
-    _G.Fov = v
-end)
+local function CreateMobileGui()
+	DestroyMobileGui()
 
-createSlider("STRENGTH", 100, 0.1, 1.0, _G.Strength, function(v)
-    _G.Strength = v
-end)
+	MobileGui = Instance.new("ScreenGui")
+	MobileGui.Name = "FlightMobileGui"
+	MobileGui.ResetOnSpawn = false
+	MobileGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+	MobileGui.Parent = PlayerGui
 
-local function toggle(txt, y, var)
-    local b = Instance.new("TextButton", main)
-    b.Size = UDim2.new(0.8, 0, 0, 35)
-    b.Position = UDim2.new(0.1, 0, 0, y)
-    b.BackgroundColor3 = Color3.fromRGB(15, 15, 15)
-    b.TextColor3 = Color3.new(1, 1, 1)
-    b.Text = txt .. ": " .. tostring(_G[var]):upper()
-    b.Font = Enum.Font.Code
-    Instance.new("UICorner", b)
+	local function MakeButton(label, pos, size, color, onDown, onUp)
+		local btn = Instance.new("TextButton")
+		btn.Size = size or UDim2.new(0, 70, 0, 70)
+		btn.Position = pos
+		btn.AnchorPoint = Vector2.new(0.5, 0.5)
+		btn.BackgroundColor3 = color or Color3.fromRGB(40, 40, 40)
+		btn.BackgroundTransparency = 0.3
+		btn.TextColor3 = Color3.fromRGB(255, 255, 255)
+		btn.Text = label
+		btn.TextScaled = true
+		btn.Font = Enum.Font.GothamBold
+		btn.AutoButtonColor = false
+		btn.BorderSizePixel = 0
+		btn.Parent = MobileGui
 
-    b.MouseButton1Click:Connect(function()
-        _G[var] = not _G[var]
-        b.Text = txt .. ": " .. tostring(_G[var]):upper()
-    end)
+		Instance.new("UICorner", btn).CornerRadius = UDim.new(0.2, 0)
+
+		local stroke = Instance.new("UIStroke", btn)
+		stroke.Color = Color3.fromRGB(255, 255, 255)
+		stroke.Transparency = 0.7
+		stroke.Thickness = 1.5
+
+		btn.InputBegan:Connect(function(input)
+			if input.UserInputType == Enum.UserInputType.Touch
+				or input.UserInputType == Enum.UserInputType.MouseButton1 then
+				btn.BackgroundColor3 = Color3.fromRGB(80, 80, 200)
+				onDown()
+			end
+		end)
+		btn.InputEnded:Connect(function(input)
+			if input.UserInputType == Enum.UserInputType.Touch
+				or input.UserInputType == Enum.UserInputType.MouseButton1 then
+				btn.BackgroundColor3 = color or Color3.fromRGB(40, 40, 40)
+				onUp()
+			end
+		end)
+		btn.MouseLeave:Connect(function()
+			btn.BackgroundColor3 = color or Color3.fromRGB(40, 40, 40)
+			onUp()
+		end)
+		return btn
+	end
+
+	local S = UDim2.new
+	local btnSize = S(0, 72, 0, 72)
+	local padX, padY, step = 0.12, 0.82, 0.085
+
+	MakeButton("▲", S(padX,0,padY-step,0), btnSize, Color3.fromRGB(35,35,35),
+		function() MobileKeys.Forward=true end, function() MobileKeys.Forward=false end)
+	MakeButton("▼", S(padX,0,padY+step,0), btnSize, Color3.fromRGB(35,35,35),
+		function() MobileKeys.Back=true end, function() MobileKeys.Back=false end)
+	MakeButton("◀", S(padX-step,0,padY,0), btnSize, Color3.fromRGB(35,35,35),
+		function() MobileKeys.Left=true end, function() MobileKeys.Left=false end)
+	MakeButton("▶", S(padX+step,0,padY,0), btnSize, Color3.fromRGB(35,35,35),
+		function() MobileKeys.Right=true end, function() MobileKeys.Right=false end)
+
+	local vertX = 0.88
+	MakeButton("⬆ UP", S(vertX,0,padY-step*0.6,0), S(0,80,0,72), Color3.fromRGB(30,100,30),
+		function() MobileKeys.Up=true end, function() MobileKeys.Up=false end)
+	MakeButton("⬇ DN", S(vertX,0,padY+step*0.6,0), S(0,80,0,72), Color3.fromRGB(120,30,30),
+		function() MobileKeys.Down=true end, function() MobileKeys.Down=false end)
+
+	local lbl = Instance.new("TextLabel")
+	lbl.Size = UDim2.new(0,160,0,28)
+	lbl.Position = UDim2.new(padX,-80,padY-step*2.1,0)
+	lbl.BackgroundTransparency = 1
+	lbl.TextColor3 = Color3.fromRGB(200,200,200)
+	lbl.TextScaled = true
+	lbl.Font = Enum.Font.Gotham
+	lbl.Text = "✈ FLIGHT CONTROLS"
+	lbl.Parent = MobileGui
 end
 
-toggle("TEAM CHECK", 160, "TeamCheck")
-toggle("WALL CHECK", 210, "WallCheck")
-toggle("AIMBOT", 260, "Aimbot")
+-- =====================
+-- // HIGHLIGHT FUNCTIONS
+-- =====================
 
-local t = Instance.new("TextButton", sg)
-t.Size = UDim2.new(0, 50, 0, 50)
-t.Position = UDim2.new(0, 20, 0, 100)
-t.Text = "d4"
-t.BackgroundColor3 = Color3.fromRGB(5, 5, 5)
-t.TextColor3 = Color3.new(1, 0, 0)
+local function RemoveHighlight(player)
+	if Highlights[player] then Highlights[player]:Destroy(); Highlights[player] = nil end
+end
 
-Instance.new("UICorner", t).CornerRadius = UDim.new(1, 0)
-local ts = Instance.new("UIStroke", t)
-ts.Thickness = 2
+local function ApplyHighlight(player)
+	local char = player.Character
+	if not char then return end
+	RemoveHighlight(player)
+	local hl = Instance.new("Highlight")
+	hl.FillColor = FillColor
+	hl.OutlineColor = OutlineColor
+	hl.FillTransparency = FillTransparency
+	hl.OutlineTransparency = OutlineTransparency
+	hl.Adornee = char
+	hl.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
+	hl.Parent = char
+	Highlights[player] = hl
+end
 
-local toggleDragging = false
-local toggleDragStart
-local toggleStartPos
+local function RemoveAllHighlights()
+	for player in pairs(Highlights) do RemoveHighlight(player) end
+end
 
-t.InputBegan:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseButton1
-        or input.UserInputType == Enum.UserInputType.Touch then
+local function HighlightAllPlayers()
+	for _, player in ipairs(Players:GetPlayers()) do ApplyHighlight(player) end
+end
 
-        toggleDragging = true
-        toggleDragStart = input.Position
-        toggleStartPos = t.Position
-
-        input.Changed:Connect(function()
-            if input.UserInputState == Enum.UserInputState.End then
-                toggleDragging = false
-            end
-        end)
-    end
+Players.PlayerAdded:Connect(function(player)
+	player.CharacterAdded:Connect(function()
+		if HighlightEnabled then task.wait(1); ApplyHighlight(player) end
+	end)
 end)
 
-UserInputService.InputChanged:Connect(function(input)
-    if not toggleDragging then return end
+for _, player in ipairs(Players:GetPlayers()) do
+	player.CharacterAdded:Connect(function()
+		if HighlightEnabled then task.wait(1); ApplyHighlight(player) end
+	end)
+end
 
-    if input.UserInputType == Enum.UserInputType.MouseMovement
-        or input.UserInputType == Enum.UserInputType.Touch then
+Players.PlayerRemoving:Connect(function(player) RemoveHighlight(player) end)
 
-        local delta = input.Position - toggleDragStart
+-- =====================
+-- // FLIGHT FUNCTIONS
+-- =====================
 
-        t.Position = UDim2.new(
-            toggleStartPos.X.Scale,
-            toggleStartPos.X.Offset + delta.X,
-            toggleStartPos.Y.Scale,
-            toggleStartPos.Y.Offset + delta.Y
-        )
-    end
+local function IsKeyActive(key, mobileKey)
+	return UserInputService:IsKeyDown(key) or MobileKeys[mobileKey]
+end
+
+local function StartFlight()
+	local char = LocalPlayer.Character
+	if not char then return end
+	local hrp = char:FindFirstChild("HumanoidRootPart")
+	local hum = char:FindFirstChildOfClass("Humanoid")
+	if not hrp or not hum then return end
+
+	hum.PlatformStand = true
+
+	local bv = Instance.new("BodyVelocity")
+	bv.Name = "FlightVelocity"
+	bv.Velocity = Vector3.zero
+	bv.MaxForce = Vector3.new(1e5,1e5,1e5)
+	bv.Parent = hrp
+
+	local bg = Instance.new("BodyGyro")
+	bg.Name = "FlightGyro"
+	bg.MaxTorque = Vector3.new(1e5,1e5,1e5)
+	bg.D = 100
+	bg.CFrame = hrp.CFrame
+	bg.Parent = hrp
+
+	FlightConnection = RunService.Heartbeat:Connect(function()
+		local c = LocalPlayer.Character
+		if not c then return end
+		local h = c:FindFirstChild("HumanoidRootPart")
+		local bv2 = h and h:FindFirstChild("FlightVelocity")
+		local bg2 = h and h:FindFirstChild("FlightGyro")
+		if not h or not bv2 or not bg2 then return end
+
+		local mv = Vector3.zero
+		local cf = Camera.CFrame
+		local fwd = Vector3.new(cf.LookVector.X,0,cf.LookVector.Z).Unit
+		local rgt = Vector3.new(cf.RightVector.X,0,cf.RightVector.Z).Unit
+
+		if IsKeyActive(Keys.Forward,"Forward") then mv += fwd end
+		if IsKeyActive(Keys.Back,"Back")       then mv -= fwd end
+		if IsKeyActive(Keys.Right,"Right")     then mv += rgt end
+		if IsKeyActive(Keys.Left,"Left")       then mv -= rgt end
+		if IsKeyActive(Keys.Up,"Up")           then mv += Vector3.new(0,1,0) end
+		if IsKeyActive(Keys.Down,"Down")       then mv -= Vector3.new(0,1,0) end
+
+		if mv.Magnitude > 0 then mv = mv.Unit * FlightSpeed end
+		bv2.Velocity = mv
+		bg2.CFrame = cf
+	end)
+
+	CreateMobileGui()
+end
+
+local function StopFlight()
+	if FlightConnection then FlightConnection:Disconnect(); FlightConnection = nil end
+	DestroyMobileGui()
+	local char = LocalPlayer.Character
+	if not char then return end
+	local hrp = char:FindFirstChild("HumanoidRootPart")
+	local hum = char:FindFirstChildOfClass("Humanoid")
+	if hrp then
+		local bv = hrp:FindFirstChild("FlightVelocity")
+		local bg = hrp:FindFirstChild("FlightGyro")
+		if bv then bv:Destroy() end
+		if bg then bg:Destroy() end
+	end
+	if hum then hum.PlatformStand = false end
+end
+
+-- =====================
+-- // NOCLIP FUNCTIONS
+-- =====================
+
+local function StartNoclip()
+	NoclipConnection = RunService.Stepped:Connect(function()
+		local char = LocalPlayer.Character
+		if not char then return end
+		for _, part in ipairs(char:GetDescendants()) do
+			if part:IsA("BasePart") then part.CanCollide = false end
+		end
+	end)
+end
+
+local function StopNoclip()
+	if NoclipConnection then NoclipConnection:Disconnect(); NoclipConnection = nil end
+	local char = LocalPlayer.Character
+	if not char then return end
+	for _, part in ipairs(char:GetDescendants()) do
+		if part:IsA("BasePart") then part.CanCollide = true end
+	end
+end
+
+-- =====================
+-- // COMBAT FUNCTIONS
+-- =====================
+
+local function HasLineOfSight(targetPart)
+	local origin = Camera.CFrame.Position
+	local direction = targetPart.Position - origin
+
+	local rayParams = RaycastParams.new()
+	rayParams.FilterType = Enum.RaycastFilterType.Exclude
+
+	local chars = {}
+	for _, p in ipairs(Players:GetPlayers()) do
+		if p.Character then table.insert(chars, p.Character) end
+	end
+	rayParams.FilterDescendantsInstances = chars
+
+	return workspace:Raycast(origin, direction.Unit * direction.Magnitude, rayParams) == nil
+end
+
+local function IsEnemy(player)
+	if not TeamCheckEnabled then return true end
+	local myTeam = LocalPlayer.Team
+	local theirTeam = player.Team
+	if myTeam == nil and theirTeam == nil then return true end
+	return myTeam ~= theirTeam
+end
+
+local function GetNearestTarget()
+	local screenCenter = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y / 2)
+	local closestPlayer = nil
+	local closestDist = AimAssistFOV
+
+	for _, player in ipairs(Players:GetPlayers()) do
+		if player == LocalPlayer then continue end
+		if not IsEnemy(player) then continue end
+
+		local char = player.Character
+		if not char then continue end
+
+		local aimPart = char:FindFirstChild(_G.AimTarget) or char:FindFirstChild("HumanoidRootPart")
+		local hum = char:FindFirstChildOfClass("Humanoid")
+		if not aimPart or not hum or hum.Health <= 0 then continue end
+
+		local screenPos, onScreen = Camera:WorldToViewportPoint(aimPart.Position)
+		if not onScreen then continue end
+
+		local dist = (Vector2.new(screenPos.X, screenPos.Y) - screenCenter).Magnitude
+		if dist >= closestDist then continue end
+
+		if WallCheckEnabled and not HasLineOfSight(aimPart) then continue end
+
+		closestDist = dist
+		closestPlayer = player
+	end
+
+	return closestPlayer
+end
+
+local function StartAimAssist()
+	AimAssistConnection = RunService.Heartbeat:Connect(function()
+		local screenCenter = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y / 2)
+		FOVCircle.Position = screenCenter
+		FOVCircle.Radius = AimAssistFOV
+		FOVCircle.Visible = ShowFOVCircle and AimAssistEnabled
+
+		if not AimAssistEnabled then return end
+
+		local isAiming = UserInputService:IsMouseButtonPressed(Enum.UserInputType.MouseButton2)
+			or UserInputService:IsKeyDown(Enum.KeyCode.ButtonL2)
+		local isMobile = UserInputService.TouchEnabled and not UserInputService.KeyboardEnabled
+		if not isAiming and not isMobile then return end
+
+		local target = GetNearestTarget()
+		if not target then return end
+
+		local char = target.Character
+		if not char then return end
+
+		local aimPart = char:FindFirstChild(_G.AimTarget) or char:FindFirstChild("HumanoidRootPart")
+		if not aimPart then return end
+
+		Camera.CFrame = Camera.CFrame:Lerp(
+			CFrame.new(Camera.CFrame.Position, aimPart.Position),
+			AimAssistStrength
+		)
+	end)
+end
+
+local function StopAimAssist()
+	if AimAssistConnection then AimAssistConnection:Disconnect(); AimAssistConnection = nil end
+	FOVCircle.Visible = false
+end
+
+-- =====================
+-- // RESPAWN HANDLER
+-- =====================
+
+LocalPlayer.CharacterAdded:Connect(function()
+	task.wait(1)
+	if FlightEnabled then StartFlight() end
+	if NoclipEnabled then StartNoclip() end
 end)
 
-t.MouseButton1Click:Connect(function()
-    main.Visible = not main.Visible
+-- =====================
+-- // RAYFIELD UI
+-- =====================
+
+local Window = Rayfield:CreateWindow({
+	Name = "Owner Panel",
+	LoadingTitle = "Owner Panel",
+	LoadingSubtitle = "Insane Slap Tower",
+	Theme = "Default",
+	DisableRayfieldPrompts = false,
+	DisableBuildWarnings = false,
+	ConfigurationSaving = { Enabled = false },
+	Discord = { Enabled = false },
+	KeySystem = false,
+})
+
+-- ========================
+-- TAB 1: Highlights
+-- ========================
+local HighlightTab = Window:CreateTab("Highlights", 4483362458)
+
+HighlightTab:CreateToggle({
+	Name = "Enable Player Highlights", CurrentValue = false, Flag = "HighlightToggle",
+	Callback = function(v)
+		HighlightEnabled = v
+		if v then HighlightAllPlayers() else RemoveAllHighlights() end
+	end,
+})
+
+HighlightTab:CreateToggle({
+	Name = "Highlight Yourself", CurrentValue = false, Flag = "SelfHighlight",
+	Callback = function(v)
+		if v then ApplyHighlight(LocalPlayer) else RemoveHighlight(LocalPlayer) end
+	end,
+})
+
+HighlightTab:CreateSlider({
+	Name = "Fill Transparency", Range = {0,1}, Increment = 0.05,
+	CurrentValue = 0.5, Flag = "FillTransparency",
+	Callback = function(v) FillTransparency=v; for _,hl in pairs(Highlights) do hl.FillTransparency=v end end,
+})
+
+HighlightTab:CreateSlider({
+	Name = "Outline Transparency", Range = {0,1}, Increment = 0.05,
+	CurrentValue = 0, Flag = "OutlineTransparency",
+	Callback = function(v) OutlineTransparency=v; for _,hl in pairs(Highlights) do hl.OutlineTransparency=v end end,
+})
+
+HighlightTab:CreateDropdown({
+	Name = "Fill Color",
+	Options = {"Red","Blue","Green","Yellow","Purple","Orange","White","Cyan"},
+	CurrentOption = {"Red"}, MultipleOptions = false, Flag = "FillColor",
+	Callback = function(o)
+		local c = {Red=Color3.fromRGB(255,0,0),Blue=Color3.fromRGB(0,100,255),Green=Color3.fromRGB(0,255,50),
+			Yellow=Color3.fromRGB(255,255,0),Purple=Color3.fromRGB(180,0,255),Orange=Color3.fromRGB(255,140,0),
+			White=Color3.fromRGB(255,255,255),Cyan=Color3.fromRGB(0,255,255)}
+		FillColor = c[o[1]] or Color3.fromRGB(255,0,0)
+		for _,hl in pairs(Highlights) do hl.FillColor = FillColor end
+	end,
+})
+
+HighlightTab:CreateDropdown({
+	Name = "Outline Color",
+	Options = {"White","Red","Blue","Green","Yellow","Black","Cyan"},
+	CurrentOption = {"White"}, MultipleOptions = false, Flag = "OutlineColor",
+	Callback = function(o)
+		local c = {White=Color3.fromRGB(255,255,255),Red=Color3.fromRGB(255,0,0),Blue=Color3.fromRGB(0,100,255),
+			Green=Color3.fromRGB(0,255,50),Yellow=Color3.fromRGB(255,255,0),Black=Color3.fromRGB(0,0,0),
+			Cyan=Color3.fromRGB(0,255,255)}
+		OutlineColor = c[o[1]] or Color3.fromRGB(255,255,255)
+		for _,hl in pairs(Highlights) do hl.OutlineColor = OutlineColor end
+	end,
+})
+
+HighlightTab:CreateToggle({
+	Name = "Show Through Walls", CurrentValue = true, Flag = "DepthMode",
+	Callback = function(v)
+		local mode = v and Enum.HighlightDepthMode.AlwaysOnTop or Enum.HighlightDepthMode.Occluded
+		for _,hl in pairs(Highlights) do hl.DepthMode = mode end
+	end,
+})
+
+HighlightTab:CreateButton({
+	Name = "Refresh Highlights",
+	Callback = function()
+		if HighlightEnabled then RemoveAllHighlights(); HighlightAllPlayers() end
+	end,
+})
+
+-- ========================
+-- TAB 2: Flight
+-- ========================
+local FlightTab = Window:CreateTab("Flight", 6034754478)
+
+FlightTab:CreateSection("Flight Controls")
+
+FlightTab:CreateToggle({
+	Name = "Enable Flight", CurrentValue = false, Flag = "FlightToggle",
+	Callback = function(v)
+		FlightEnabled = v
+		if v then StartFlight() else StopFlight() end
+	end,
+})
+
+FlightTab:CreateSlider({
+	Name = "Flight Speed", Range = {10,200}, Increment = 5,
+	Suffix = " studs/s", CurrentValue = 50, Flag = "FlightSpeed",
+	Callback = function(v) FlightSpeed = v end,
+})
+
+FlightTab:CreateSection("PC Keybinds")
+FlightTab:CreateLabel("W / A / S / D  →  Directional")
+FlightTab:CreateLabel("Space          →  Ascend")
+FlightTab:CreateLabel("Left Ctrl      →  Descend")
+
+FlightTab:CreateSection("Mobile")
+FlightTab:CreateLabel("D-pad appears bottom-left when flight is on")
+FlightTab:CreateLabel("UP / DN buttons appear bottom-right")
+
+-- ========================
+-- TAB 3: Noclip
+-- ========================
+local NoclipTab = Window:CreateTab("Noclip", 6026568198)
+
+NoclipTab:CreateSection("Noclip")
+
+NoclipTab:CreateToggle({
+	Name = "Enable Noclip", CurrentValue = false, Flag = "NoclipToggle",
+	Callback = function(v)
+		NoclipEnabled = v
+		if v then
+			StartNoclip()
+			Rayfield:Notify({ Title="Noclip ON", Content="Walking through walls!", Duration=3, Image=6026568198 })
+		else
+			StopNoclip()
+			Rayfield:Notify({ Title="Noclip OFF", Content="Collision restored.", Duration=3, Image=6026568198 })
+		end
+	end,
+})
+
+NoclipTab:CreateSection("Info")
+NoclipTab:CreateLabel("Walk into any wall or floor to pass through.")
+NoclipTab:CreateLabel("Collision fully restored when toggled off.")
+NoclipTab:CreateLabel("Tip: Combine with Flight for full freedom!")
+
+-- ========================
+-- TAB 4: Combat
+-- ========================
+local CombatTab = Window:CreateTab("Combat", 6031071057)
+
+CombatTab:CreateSection("Aim Assist")
+
+CombatTab:CreateToggle({
+	Name = "Enable Aim Assist", CurrentValue = false, Flag = "AimAssistToggle",
+	Callback = function(v)
+		AimAssistEnabled = v
+		if v then
+			StartAimAssist()
+			Rayfield:Notify({ Title="Aim Assist ON", Content="Hold Right Click to activate.", Duration=3, Image=6031071057 })
+		else
+			StopAimAssist()
+			Rayfield:Notify({ Title="Aim Assist OFF", Content="Aim assist disabled.", Duration=3, Image=6031071057 })
+		end
+	end,
+})
+
+CombatTab:CreateSlider({
+	Name = "Aim Assist Strength", Range = {0.01,1}, Increment = 0.01,
+	CurrentValue = 0.1, Flag = "AimStrength",
+	Callback = function(v) AimAssistStrength = v end,
+})
+
+CombatTab:CreateSection("Filters")
+
+CombatTab:CreateToggle({
+	Name = "Team Check (Skip Teammates)", CurrentValue = true, Flag = "TeamCheck",
+	Callback = function(v) TeamCheckEnabled = v end,
+})
+
+CombatTab:CreateToggle({
+	Name = "Wall Check (Visible Targets Only)", CurrentValue = true, Flag = "WallCheck",
+	Callback = function(v) WallCheckEnabled = v end,
+})
+
+CombatTab:CreateSection("FOV Circle")
+
+CombatTab:CreateToggle({
+	Name = "Show FOV Circle", CurrentValue = true, Flag = "ShowFOV",
+	Callback = function(v)
+		ShowFOVCircle = v
+		FOVCircle.Visible = v and AimAssistEnabled
+	end,
+})
+
+CombatTab:CreateSlider({
+	Name = "FOV Radius", Range = {20,500}, Increment = 5,
+	Suffix = " px", CurrentValue = 100, Flag = "FOVRadius",
+	Callback = function(v) AimAssistFOV = v; FOVCircle.Radius = v end,
+})
+
+CombatTab:CreateDropdown({
+	Name = "FOV Circle Color",
+	Options = {"White","Red","Blue","Green","Yellow","Purple","Cyan","Orange"},
+	CurrentOption = {"White"}, MultipleOptions = false, Flag = "FOVColor",
+	Callback = function(o)
+		local c = {White=Color3.fromRGB(255,255,255),Red=Color3.fromRGB(255,0,0),Blue=Color3.fromRGB(0,100,255),
+			Green=Color3.fromRGB(0,255,50),Yellow=Color3.fromRGB(255,255,0),Purple=Color3.fromRGB(180,0,255),
+			Cyan=Color3.fromRGB(0,255,255),Orange=Color3.fromRGB(255,140,0)}
+		FOVCircle.Color = c[o[1]] or Color3.fromRGB(255,255,255)
+	end,
+})
+
+CombatTab:CreateSection("Aim Target")
+
+CombatTab:CreateDropdown({
+	Name = "Aim At",
+	Options = {"Head","HumanoidRootPart"},
+	CurrentOption = {"Head"}, MultipleOptions = false, Flag = "AimTarget",
+	Callback = function(o) _G.AimTarget = o[1] end,
+})
+
+CombatTab:CreateSection("Info")
+CombatTab:CreateLabel("PC: Hold Right Click to activate aim assist.")
+CombatTab:CreateLabel("Mobile: Aim assist is always active when on.")
+CombatTab:CreateLabel("Team Check skips players on your team.")
+CombatTab:CreateLabel("Wall Check skips players behind walls.")
+
+-- ========================
+-- // Startup Notification
+-- ========================
+
+Rayfield:Notify({
+	Title = "Owner Panel Loaded",
+	Content = "Highlights · Flight · Noclip · Combat — ready!",
+	Duration = 5,
+	Image = 4483362458,
+})-- // Owner Panel - Complete Script
+-- // LocalScript in StarterPlayerScripts
+
+local Players = game:GetService("Players")
+local UserInputService = game:GetService("UserInputService")
+local RunService = game:GetService("RunService")
+
+local Rayfield = loadstring(game:HttpGet("https://sirius.menu/rayfield"))()
+
+local LocalPlayer = Players.LocalPlayer
+local Camera = workspace.CurrentCamera
+local PlayerGui = LocalPlayer:WaitForChild("PlayerGui")
+
+-- =====================
+-- // HIGHLIGHT STATE
+-- =====================
+local HighlightEnabled = false
+local FillColor = Color3.fromRGB(255, 0, 0)
+local OutlineColor = Color3.fromRGB(255, 255, 255)
+local FillTransparency = 0.5
+local OutlineTransparency = 0
+local Highlights = {}
+
+-- =====================
+-- // FLIGHT STATE
+-- =====================
+local FlightEnabled = false
+local FlightSpeed = 50
+local FlightConnection = nil
+
+local MobileKeys = {
+	Forward = false, Back = false,
+	Left = false,    Right = false,
+	Up = false,      Down = false,
+}
+
+local Keys = {
+	Up      = Enum.KeyCode.Space,
+	Down    = Enum.KeyCode.LeftControl,
+	Forward = Enum.KeyCode.W,
+	Back    = Enum.KeyCode.S,
+	Left    = Enum.KeyCode.A,
+	Right   = Enum.KeyCode.D,
+}
+
+-- =====================
+-- // NOCLIP STATE
+-- =====================
+local NoclipEnabled = false
+local NoclipConnection = nil
+
+-- =====================
+-- // COMBAT STATE
+-- =====================
+local AimAssistEnabled = false
+local AimAssistStrength = 0.1
+local AimAssistFOV = 100
+local ShowFOVCircle = true
+local TeamCheckEnabled = true
+local WallCheckEnabled = true
+local AimAssistConnection = nil
+_G.AimTarget = "Head"
+
+local FOVCircle = Drawing.new("Circle")
+FOVCircle.Visible = false
+FOVCircle.Radius = AimAssistFOV
+FOVCircle.Color = Color3.fromRGB(255, 255, 255)
+FOVCircle.Thickness = 1.5
+FOVCircle.Filled = false
+FOVCircle.NumSides = 64
+
+-- =====================
+-- // MOBILE UI
+-- =====================
+local MobileGui = nil
+
+local function DestroyMobileGui()
+	if MobileGui then MobileGui:Destroy(); MobileGui = nil end
+	for k in pairs(MobileKeys) do MobileKeys[k] = false end
+end
+
+local function CreateMobileGui()
+	DestroyMobileGui()
+
+	MobileGui = Instance.new("ScreenGui")
+	MobileGui.Name = "FlightMobileGui"
+	MobileGui.ResetOnSpawn = false
+	MobileGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+	MobileGui.Parent = PlayerGui
+
+	local function MakeButton(label, pos, size, color, onDown, onUp)
+		local btn = Instance.new("TextButton")
+		btn.Size = size or UDim2.new(0, 70, 0, 70)
+		btn.Position = pos
+		btn.AnchorPoint = Vector2.new(0.5, 0.5)
+		btn.BackgroundColor3 = color or Color3.fromRGB(40, 40, 40)
+		btn.BackgroundTransparency = 0.3
+		btn.TextColor3 = Color3.fromRGB(255, 255, 255)
+		btn.Text = label
+		btn.TextScaled = true
+		btn.Font = Enum.Font.GothamBold
+		btn.AutoButtonColor = false
+		btn.BorderSizePixel = 0
+		btn.Parent = MobileGui
+
+		Instance.new("UICorner", btn).CornerRadius = UDim.new(0.2, 0)
+
+		local stroke = Instance.new("UIStroke", btn)
+		stroke.Color = Color3.fromRGB(255, 255, 255)
+		stroke.Transparency = 0.7
+		stroke.Thickness = 1.5
+
+		btn.InputBegan:Connect(function(input)
+			if input.UserInputType == Enum.UserInputType.Touch
+				or input.UserInputType == Enum.UserInputType.MouseButton1 then
+				btn.BackgroundColor3 = Color3.fromRGB(80, 80, 200)
+				onDown()
+			end
+		end)
+		btn.InputEnded:Connect(function(input)
+			if input.UserInputType == Enum.UserInputType.Touch
+				or input.UserInputType == Enum.UserInputType.MouseButton1 then
+				btn.BackgroundColor3 = color or Color3.fromRGB(40, 40, 40)
+				onUp()
+			end
+		end)
+		btn.MouseLeave:Connect(function()
+			btn.BackgroundColor3 = color or Color3.fromRGB(40, 40, 40)
+			onUp()
+		end)
+		return btn
+	end
+
+	local S = UDim2.new
+	local btnSize = S(0, 72, 0, 72)
+	local padX, padY, step = 0.12, 0.82, 0.085
+
+	MakeButton("▲", S(padX,0,padY-step,0), btnSize, Color3.fromRGB(35,35,35),
+		function() MobileKeys.Forward=true end, function() MobileKeys.Forward=false end)
+	MakeButton("▼", S(padX,0,padY+step,0), btnSize, Color3.fromRGB(35,35,35),
+		function() MobileKeys.Back=true end, function() MobileKeys.Back=false end)
+	MakeButton("◀", S(padX-step,0,padY,0), btnSize, Color3.fromRGB(35,35,35),
+		function() MobileKeys.Left=true end, function() MobileKeys.Left=false end)
+	MakeButton("▶", S(padX+step,0,padY,0), btnSize, Color3.fromRGB(35,35,35),
+		function() MobileKeys.Right=true end, function() MobileKeys.Right=false end)
+
+	local vertX = 0.88
+	MakeButton("⬆ UP", S(vertX,0,padY-step*0.6,0), S(0,80,0,72), Color3.fromRGB(30,100,30),
+		function() MobileKeys.Up=true end, function() MobileKeys.Up=false end)
+	MakeButton("⬇ DN", S(vertX,0,padY+step*0.6,0), S(0,80,0,72), Color3.fromRGB(120,30,30),
+		function() MobileKeys.Down=true end, function() MobileKeys.Down=false end)
+
+	local lbl = Instance.new("TextLabel")
+	lbl.Size = UDim2.new(0,160,0,28)
+	lbl.Position = UDim2.new(padX,-80,padY-step*2.1,0)
+	lbl.BackgroundTransparency = 1
+	lbl.TextColor3 = Color3.fromRGB(200,200,200)
+	lbl.TextScaled = true
+	lbl.Font = Enum.Font.Gotham
+	lbl.Text = "✈ FLIGHT CONTROLS"
+	lbl.Parent = MobileGui
+end
+
+-- =====================
+-- // HIGHLIGHT FUNCTIONS
+-- =====================
+
+local function RemoveHighlight(player)
+	if Highlights[player] then Highlights[player]:Destroy(); Highlights[player] = nil end
+end
+
+local function ApplyHighlight(player)
+	local char = player.Character
+	if not char then return end
+	RemoveHighlight(player)
+	local hl = Instance.new("Highlight")
+	hl.FillColor = FillColor
+	hl.OutlineColor = OutlineColor
+	hl.FillTransparency = FillTransparency
+	hl.OutlineTransparency = OutlineTransparency
+	hl.Adornee = char
+	hl.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
+	hl.Parent = char
+	Highlights[player] = hl
+end
+
+local function RemoveAllHighlights()
+	for player in pairs(Highlights) do RemoveHighlight(player) end
+end
+
+local function HighlightAllPlayers()
+	for _, player in ipairs(Players:GetPlayers()) do ApplyHighlight(player) end
+end
+
+Players.PlayerAdded:Connect(function(player)
+	player.CharacterAdded:Connect(function()
+		if HighlightEnabled then task.wait(1); ApplyHighlight(player) end
+	end)
 end)
+
+for _, player in ipairs(Players:GetPlayers()) do
+	player.CharacterAdded:Connect(function()
+		if HighlightEnabled then task.wait(1); ApplyHighlight(player) end
+	end)
+end
+
+Players.PlayerRemoving:Connect(function(player) RemoveHighlight(player) end)
+
+-- =====================
+-- // FLIGHT FUNCTIONS
+-- =====================
+
+local function IsKeyActive(key, mobileKey)
+	return UserInputService:IsKeyDown(key) or MobileKeys[mobileKey]
+end
+
+local function StartFlight()
+	local char = LocalPlayer.Character
+	if not char then return end
+	local hrp = char:FindFirstChild("HumanoidRootPart")
+	local hum = char:FindFirstChildOfClass("Humanoid")
+	if not hrp or not hum then return end
+
+	hum.PlatformStand = true
+
+	local bv = Instance.new("BodyVelocity")
+	bv.Name = "FlightVelocity"
+	bv.Velocity = Vector3.zero
+	bv.MaxForce = Vector3.new(1e5,1e5,1e5)
+	bv.Parent = hrp
+
+	local bg = Instance.new("BodyGyro")
+	bg.Name = "FlightGyro"
+	bg.MaxTorque = Vector3.new(1e5,1e5,1e5)
+	bg.D = 100
+	bg.CFrame = hrp.CFrame
+	bg.Parent = hrp
+
+	FlightConnection = RunService.Heartbeat:Connect(function()
+		local c = LocalPlayer.Character
+		if not c then return end
+		local h = c:FindFirstChild("HumanoidRootPart")
+		local bv2 = h and h:FindFirstChild("FlightVelocity")
+		local bg2 = h and h:FindFirstChild("FlightGyro")
+		if not h or not bv2 or not bg2 then return end
+
+		local mv = Vector3.zero
+		local cf = Camera.CFrame
+		local fwd = Vector3.new(cf.LookVector.X,0,cf.LookVector.Z).Unit
+		local rgt = Vector3.new(cf.RightVector.X,0,cf.RightVector.Z).Unit
+
+		if IsKeyActive(Keys.Forward,"Forward") then mv += fwd end
+		if IsKeyActive(Keys.Back,"Back")       then mv -= fwd end
+		if IsKeyActive(Keys.Right,"Right")     then mv += rgt end
+		if IsKeyActive(Keys.Left,"Left")       then mv -= rgt end
+		if IsKeyActive(Keys.Up,"Up")           then mv += Vector3.new(0,1,0) end
+		if IsKeyActive(Keys.Down,"Down")       then mv -= Vector3.new(0,1,0) end
+
+		if mv.Magnitude > 0 then mv = mv.Unit * FlightSpeed end
+		bv2.Velocity = mv
+		bg2.CFrame = cf
+	end)
+
+	CreateMobileGui()
+end
+
+local function StopFlight()
+	if FlightConnection then FlightConnection:Disconnect(); FlightConnection = nil end
+	DestroyMobileGui()
+	local char = LocalPlayer.Character
+	if not char then return end
+	local hrp = char:FindFirstChild("HumanoidRootPart")
+	local hum = char:FindFirstChildOfClass("Humanoid")
+	if hrp then
+		local bv = hrp:FindFirstChild("FlightVelocity")
+		local bg = hrp:FindFirstChild("FlightGyro")
+		if bv then bv:Destroy() end
+		if bg then bg:Destroy() end
+	end
+	if hum then hum.PlatformStand = false end
+end
+
+-- =====================
+-- // NOCLIP FUNCTIONS
+-- =====================
+
+local function StartNoclip()
+	NoclipConnection = RunService.Stepped:Connect(function()
+		local char = LocalPlayer.Character
+		if not char then return end
+		for _, part in ipairs(char:GetDescendants()) do
+			if part:IsA("BasePart") then part.CanCollide = false end
+		end
+	end)
+end
+
+local function StopNoclip()
+	if NoclipConnection then NoclipConnection:Disconnect(); NoclipConnection = nil end
+	local char = LocalPlayer.Character
+	if not char then return end
+	for _, part in ipairs(char:GetDescendants()) do
+		if part:IsA("BasePart") then part.CanCollide = true end
+	end
+end
+
+-- =====================
+-- // COMBAT FUNCTIONS
+-- =====================
+
+local function HasLineOfSight(targetPart)
+	local origin = Camera.CFrame.Position
+	local direction = targetPart.Position - origin
+
+	local rayParams = RaycastParams.new()
+	rayParams.FilterType = Enum.RaycastFilterType.Exclude
+
+	local chars = {}
+	for _, p in ipairs(Players:GetPlayers()) do
+		if p.Character then table.insert(chars, p.Character) end
+	end
+	rayParams.FilterDescendantsInstances = chars
+
+	return workspace:Raycast(origin, direction.Unit * direction.Magnitude, rayParams) == nil
+end
+
+local function IsEnemy(player)
+	if not TeamCheckEnabled then return true end
+	local myTeam = LocalPlayer.Team
+	local theirTeam = player.Team
+	if myTeam == nil and theirTeam == nil then return true end
+	return myTeam ~= theirTeam
+end
+
+local function GetNearestTarget()
+	local screenCenter = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y / 2)
+	local closestPlayer = nil
+	local closestDist = AimAssistFOV
+
+	for _, player in ipairs(Players:GetPlayers()) do
+		if player == LocalPlayer then continue end
+		if not IsEnemy(player) then continue end
+
+		local char = player.Character
+		if not char then continue end
+
+		local aimPart = char:FindFirstChild(_G.AimTarget) or char:FindFirstChild("HumanoidRootPart")
+		local hum = char:FindFirstChildOfClass("Humanoid")
+		if not aimPart or not hum or hum.Health <= 0 then continue end
+
+		local screenPos, onScreen = Camera:WorldToViewportPoint(aimPart.Position)
+		if not onScreen then continue end
+
+		local dist = (Vector2.new(screenPos.X, screenPos.Y) - screenCenter).Magnitude
+		if dist >= closestDist then continue end
+
+		if WallCheckEnabled and not HasLineOfSight(aimPart) then continue end
+
+		closestDist = dist
+		closestPlayer = player
+	end
+
+	return closestPlayer
+end
+
+local function StartAimAssist()
+	AimAssistConnection = RunService.Heartbeat:Connect(function()
+		local screenCenter = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y / 2)
+		FOVCircle.Position = screenCenter
+		FOVCircle.Radius = AimAssistFOV
+		FOVCircle.Visible = ShowFOVCircle and AimAssistEnabled
+
+		if not AimAssistEnabled then return end
+
+		local isAiming = UserInputService:IsMouseButtonPressed(Enum.UserInputType.MouseButton2)
+			or UserInputService:IsKeyDown(Enum.KeyCode.ButtonL2)
+		local isMobile = UserInputService.TouchEnabled and not UserInputService.KeyboardEnabled
+		if not isAiming and not isMobile then return end
+
+		local target = GetNearestTarget()
+		if not target then return end
+
+		local char = target.Character
+		if not char then return end
+
+		local aimPart = char:FindFirstChild(_G.AimTarget) or char:FindFirstChild("HumanoidRootPart")
+		if not aimPart then return end
+
+		Camera.CFrame = Camera.CFrame:Lerp(
+			CFrame.new(Camera.CFrame.Position, aimPart.Position),
+			AimAssistStrength
+		)
+	end)
+end
+
+local function StopAimAssist()
+	if AimAssistConnection then AimAssistConnection:Disconnect(); AimAssistConnection = nil end
+	FOVCircle.Visible = false
+end
+
+-- =====================
+-- // RESPAWN HANDLER
+-- =====================
+
+LocalPlayer.CharacterAdded:Connect(function()
+	task.wait(1)
+	if FlightEnabled then StartFlight() end
+	if NoclipEnabled then StartNoclip() end
+end)
+
+-- =====================
+-- // RAYFIELD UI
+-- =====================
+
+local Window = Rayfield:CreateWindow({
+	Name = "Owner Panel",
+	LoadingTitle = "Owner Panel",
+	LoadingSubtitle = "Insane Slap Tower",
+	Theme = "Default",
+	DisableRayfieldPrompts = false,
+	DisableBuildWarnings = false,
+	ConfigurationSaving = { Enabled = false },
+	Discord = { Enabled = false },
+	KeySystem = false,
+})
+
+-- ========================
+-- TAB 1: Highlights
+-- ========================
+local HighlightTab = Window:CreateTab("Highlights", 4483362458)
+
+HighlightTab:CreateToggle({
+	Name = "Enable Player Highlights", CurrentValue = false, Flag = "HighlightToggle",
+	Callback = function(v)
+		HighlightEnabled = v
+		if v then HighlightAllPlayers() else RemoveAllHighlights() end
+	end,
+})
+
+HighlightTab:CreateToggle({
+	Name = "Highlight Yourself", CurrentValue = false, Flag = "SelfHighlight",
+	Callback = function(v)
+		if v then ApplyHighlight(LocalPlayer) else RemoveHighlight(LocalPlayer) end
+	end,
+})
+
+HighlightTab:CreateSlider({
+	Name = "Fill Transparency", Range = {0,1}, Increment = 0.05,
+	CurrentValue = 0.5, Flag = "FillTransparency",
+	Callback = function(v) FillTransparency=v; for _,hl in pairs(Highlights) do hl.FillTransparency=v end end,
+})
+
+HighlightTab:CreateSlider({
+	Name = "Outline Transparency", Range = {0,1}, Increment = 0.05,
+	CurrentValue = 0, Flag = "OutlineTransparency",
+	Callback = function(v) OutlineTransparency=v; for _,hl in pairs(Highlights) do hl.OutlineTransparency=v end end,
+})
+
+HighlightTab:CreateDropdown({
+	Name = "Fill Color",
+	Options = {"Red","Blue","Green","Yellow","Purple","Orange","White","Cyan"},
+	CurrentOption = {"Red"}, MultipleOptions = false, Flag = "FillColor",
+	Callback = function(o)
+		local c = {Red=Color3.fromRGB(255,0,0),Blue=Color3.fromRGB(0,100,255),Green=Color3.fromRGB(0,255,50),
+			Yellow=Color3.fromRGB(255,255,0),Purple=Color3.fromRGB(180,0,255),Orange=Color3.fromRGB(255,140,0),
+			White=Color3.fromRGB(255,255,255),Cyan=Color3.fromRGB(0,255,255)}
+		FillColor = c[o[1]] or Color3.fromRGB(255,0,0)
+		for _,hl in pairs(Highlights) do hl.FillColor = FillColor end
+	end,
+})
+
+HighlightTab:CreateDropdown({
+	Name = "Outline Color",
+	Options = {"White","Red","Blue","Green","Yellow","Black","Cyan"},
+	CurrentOption = {"White"}, MultipleOptions = false, Flag = "OutlineColor",
+	Callback = function(o)
+		local c = {White=Color3.fromRGB(255,255,255),Red=Color3.fromRGB(255,0,0),Blue=Color3.fromRGB(0,100,255),
+			Green=Color3.fromRGB(0,255,50),Yellow=Color3.fromRGB(255,255,0),Black=Color3.fromRGB(0,0,0),
+			Cyan=Color3.fromRGB(0,255,255)}
+		OutlineColor = c[o[1]] or Color3.fromRGB(255,255,255)
+		for _,hl in pairs(Highlights) do hl.OutlineColor = OutlineColor end
+	end,
+})
+
+HighlightTab:CreateToggle({
+	Name = "Show Through Walls", CurrentValue = true, Flag = "DepthMode",
+	Callback = function(v)
+		local mode = v and Enum.HighlightDepthMode.AlwaysOnTop or Enum.HighlightDepthMode.Occluded
+		for _,hl in pairs(Highlights) do hl.DepthMode = mode end
+	end,
+})
+
+HighlightTab:CreateButton({
+	Name = "Refresh Highlights",
+	Callback = function()
+		if HighlightEnabled then RemoveAllHighlights(); HighlightAllPlayers() end
+	end,
+})
+
+-- ========================
+-- TAB 2: Flight
+-- ========================
+local FlightTab = Window:CreateTab("Flight", 6034754478)
+
+FlightTab:CreateSection("Flight Controls")
+
+FlightTab:CreateToggle({
+	Name = "Enable Flight", CurrentValue = false, Flag = "FlightToggle",
+	Callback = function(v)
+		FlightEnabled = v
+		if v then StartFlight() else StopFlight() end
+	end,
+})
+
+FlightTab:CreateSlider({
+	Name = "Flight Speed", Range = {10,200}, Increment = 5,
+	Suffix = " studs/s", CurrentValue = 50, Flag = "FlightSpeed",
+	Callback = function(v) FlightSpeed = v end,
+})
+
+FlightTab:CreateSection("PC Keybinds")
+FlightTab:CreateLabel("W / A / S / D  →  Directional")
+FlightTab:CreateLabel("Space          →  Ascend")
+FlightTab:CreateLabel("Left Ctrl      →  Descend")
+
+FlightTab:CreateSection("Mobile")
+FlightTab:CreateLabel("D-pad appears bottom-left when flight is on")
+FlightTab:CreateLabel("UP / DN buttons appear bottom-right")
+
+-- ========================
+-- TAB 3: Noclip
+-- ========================
+local NoclipTab = Window:CreateTab("Noclip", 6026568198)
+
+NoclipTab:CreateSection("Noclip")
+
+NoclipTab:CreateToggle({
+	Name = "Enable Noclip", CurrentValue = false, Flag = "NoclipToggle",
+	Callback = function(v)
+		NoclipEnabled = v
+		if v then
+			StartNoclip()
+			Rayfield:Notify({ Title="Noclip ON", Content="Walking through walls!", Duration=3, Image=6026568198 })
+		else
+			StopNoclip()
+			Rayfield:Notify({ Title="Noclip OFF", Content="Collision restored.", Duration=3, Image=6026568198 })
+		end
+	end,
+})
+
+NoclipTab:CreateSection("Info")
+NoclipTab:CreateLabel("Walk into any wall or floor to pass through.")
+NoclipTab:CreateLabel("Collision fully restored when toggled off.")
+NoclipTab:CreateLabel("Tip: Combine with Flight for full freedom!")
+
+-- ========================
+-- TAB 4: Combat
+-- ========================
+local CombatTab = Window:CreateTab("Combat", 6031071057)
+
+CombatTab:CreateSection("Aim Assist")
+
+CombatTab:CreateToggle({
+	Name = "Enable Aim Assist", CurrentValue = false, Flag = "AimAssistToggle",
+	Callback = function(v)
+		AimAssistEnabled = v
+		if v then
+			StartAimAssist()
+			Rayfield:Notify({ Title="Aim Assist ON", Content="Hold Right Click to activate.", Duration=3, Image=6031071057 })
+		else
+			StopAimAssist()
+			Rayfield:Notify({ Title="Aim Assist OFF", Content="Aim assist disabled.", Duration=3, Image=6031071057 })
+		end
+	end,
+})
+
+CombatTab:CreateSlider({
+	Name = "Aim Assist Strength", Range = {0.01,1}, Increment = 0.01,
+	CurrentValue = 0.1, Flag = "AimStrength",
+	Callback = function(v) AimAssistStrength = v end,
+})
+
+CombatTab:CreateSection("Filters")
+
+CombatTab:CreateToggle({
+	Name = "Team Check (Skip Teammates)", CurrentValue = true, Flag = "TeamCheck",
+	Callback = function(v) TeamCheckEnabled = v end,
+})
+
+CombatTab:CreateToggle({
+	Name = "Wall Check (Visible Targets Only)", CurrentValue = true, Flag = "WallCheck",
+	Callback = function(v) WallCheckEnabled = v end,
+})
+
+CombatTab:CreateSection("FOV Circle")
+
+CombatTab:CreateToggle({
+	Name = "Show FOV Circle", CurrentValue = true, Flag = "ShowFOV",
+	Callback = function(v)
+		ShowFOVCircle = v
+		FOVCircle.Visible = v and AimAssistEnabled
+	end,
+})
+
+CombatTab:CreateSlider({
+	Name = "FOV Radius", Range = {20,500}, Increment = 5,
+	Suffix = " px", CurrentValue = 100, Flag = "FOVRadius",
+	Callback = function(v) AimAssistFOV = v; FOVCircle.Radius = v end,
+})
+
+CombatTab:CreateDropdown({
+	Name = "FOV Circle Color",
+	Options = {"White","Red","Blue","Green","Yellow","Purple","Cyan","Orange"},
+	CurrentOption = {"White"}, MultipleOptions = false, Flag = "FOVColor",
+	Callback = function(o)
+		local c = {White=Color3.fromRGB(255,255,255),Red=Color3.fromRGB(255,0,0),Blue=Color3.fromRGB(0,100,255),
+			Green=Color3.fromRGB(0,255,50),Yellow=Color3.fromRGB(255,255,0),Purple=Color3.fromRGB(180,0,255),
+			Cyan=Color3.fromRGB(0,255,255),Orange=Color3.fromRGB(255,140,0)}
+		FOVCircle.Color = c[o[1]] or Color3.fromRGB(255,255,255)
+	end,
+})
+
+CombatTab:CreateSection("Aim Target")
+
+CombatTab:CreateDropdown({
+	Name = "Aim At",
+	Options = {"Head","HumanoidRootPart"},
+	CurrentOption = {"Head"}, MultipleOptions = false, Flag = "AimTarget",
+	Callback = function(o) _G.AimTarget = o[1] end,
+})
+
+CombatTab:CreateSection("Info")
+CombatTab:CreateLabel("PC: Hold Right Click to activate aim assist.")
+CombatTab:CreateLabel("Mobile: Aim assist is always active when on.")
+CombatTab:CreateLabel("Team Check skips players on your team.")
+CombatTab:CreateLabel("Wall Check skips players behind walls.")
+
+-- ========================
+-- // Startup Notification
+-- ========================
+
+Rayfield:Notify({
+	Title = "Owner Panel Loaded",
+	Content = "Highlights · Flight · Noclip · Combat — ready!",
+	Duration = 5,
+	Image = 4483362458,
+})
