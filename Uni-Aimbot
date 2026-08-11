@@ -9,7 +9,7 @@ local Mouse = lp:GetMouse()
 _G.Aimbot = true
 _G.TeamCheck = true
 _G.WallCheck = false -- Disabled by default for MAX speed
-_G.Fov = 300
+_G.Fov = 50
 _G.Strength = 1.0 
 
 -- [[ CLEANUP ]]
@@ -161,7 +161,7 @@ local function createSlider(name, y, min, max, default, callback)
     end)
 end
 
-createSlider("FOV SIZE", 50, 50, 1500, _G.Fov, function(v) _G.Fov = v end)
+createSlider("FOV SIZE", 10, 10, 300, _G.Fov, function(v) _G.Fov = v end)
 createSlider("STRENGTH", 100, 0.1, 1.0, _G.Strength, function(v) _G.Strength = v end)
 
 local function toggle(txt, y, var)
@@ -178,7 +178,54 @@ toggle("AIMBOT", 260, "Aimbot")
 
 -- d4 Toggle Icon
 local t = Instance.new("TextButton", sg)
-t.Size = UDim2.new(0, 50, 0, 50); t.Position = UDim2.new(0, 20, 0, 100)
-t.Text = "d4"; t.BackgroundColor3 = Color3.fromRGB(5, 5, 5); t.TextColor3 = Color3.new(1, 0, 0)
-Instance.new("UICorner", t).CornerRadius = UDim.new(1, 0); local ts = Instance.new("UIStroke", t); ts.Thickness = 2
-t.MouseButton1Click:Connect(function() main.Visible = not main.Visible end)
+t.Size = UDim2.new(0, 50, 0, 50)
+t.Position = UDim2.new(0, 20, 0, 100)
+t.Text = "d4"
+t.BackgroundColor3 = Color3.fromRGB(5, 5, 5)
+t.TextColor3 = Color3.new(1, 0, 0)
+
+Instance.new("UICorner", t).CornerRadius = UDim.new(1, 0)
+local ts = Instance.new("UIStroke", t)
+ts.Thickness = 2
+
+-- [[ DRAGGABLE TOGGLE ]]
+local toggleDragging = false
+local toggleDragStart
+local toggleStartPos
+
+t.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1
+        or input.UserInputType == Enum.UserInputType.Touch then
+
+        toggleDragging = true
+        toggleDragStart = input.Position
+        toggleStartPos = t.Position
+
+        input.Changed:Connect(function()
+            if input.UserInputState == Enum.UserInputState.End then
+                toggleDragging = false
+            end
+        end)
+    end
+end)
+
+UserInputService.InputChanged:Connect(function(input)
+    if not toggleDragging then return end
+
+    if input.UserInputType == Enum.UserInputType.MouseMovement
+        or input.UserInputType == Enum.UserInputType.Touch then
+
+        local delta = input.Position - toggleDragStart
+
+        t.Position = UDim2.new(
+            toggleStartPos.X.Scale,
+            toggleStartPos.X.Offset + delta.X,
+            toggleStartPos.Y.Scale,
+            toggleStartPos.Y.Offset + delta.Y
+        )
+    end
+end)
+
+t.MouseButton1Click:Connect(function()
+    main.Visible = not main.Visible
+end)
