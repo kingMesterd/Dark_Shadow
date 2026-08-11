@@ -36,6 +36,44 @@ main.BackgroundColor3 = Color3.fromRGB(5, 5, 5)
 Instance.new("UICorner", main).CornerRadius = UDim.new(0, 8)
 local mainStroke = Instance.new("UIStroke", main); mainStroke.Thickness = 2
 
+-- [[ DRAGGABLE MAIN FRAME ]]
+local dragging = false
+local dragStart
+local startPos
+
+main.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1
+        or input.UserInputType == Enum.UserInputType.Touch then
+
+        dragging = true
+        dragStart = input.Position
+        startPos = main.Position
+
+        input.Changed:Connect(function()
+            if input.UserInputState == Enum.UserInputState.End then
+                dragging = false
+            end
+        end)
+    end
+end)
+
+UserInputService.InputChanged:Connect(function(input)
+    if not dragging then return end
+
+    if input.UserInputType == Enum.UserInputType.MouseMovement
+        or input.UserInputType == Enum.UserInputType.Touch then
+
+        local delta = input.Position - dragStart
+
+        main.Position = UDim2.new(
+            startPos.X.Scale,
+            startPos.X.Offset + delta.X,
+            startPos.Y.Scale,
+            startPos.Y.Offset + delta.Y
+        )
+    end
+end)
+
 -- [[ THE "GOOD SPEED" ENGINE (V24) ]]
 _G.EliteLock = RunService.RenderStepped:Connect(function()
     local cam = workspace.CurrentCamera
