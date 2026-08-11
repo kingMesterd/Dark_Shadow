@@ -1,0 +1,146 @@
+-- [[ d4vid ELITE V24: MAX VELOCITY ]]
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
+local lp = Players.LocalPlayer
+local Mouse = lp:GetMouse()
+
+-- [[ CONFIG ]]
+_G.Aimbot = true
+_G.TeamCheck = true
+_G.WallCheck = false -- Disabled by default for MAX speed
+_G.Fov = 300
+_G.Strength = 1.0 
+
+-- [[ CLEANUP ]]
+if _G.EliteLock then _G.EliteLock:Disconnect() end
+local old = game.CoreGui:FindFirstChild("d4vid_V24") or lp.PlayerGui:FindFirstChild("d4vid_V24")
+if old then old:Destroy() end
+
+local sg = Instance.new("ScreenGui")
+sg.Name = "d4vid_V24"
+sg.Parent = game.CoreGui or lp.PlayerGui
+sg.IgnoreGuiInset = true
+
+-- [[ VISUALS ]]
+local fovCircle = Instance.new("Frame", sg)
+fovCircle.AnchorPoint = Vector2.new(0.5, 0.5)
+fovCircle.BackgroundTransparency = 1
+local fovStroke = Instance.new("UIStroke", fovCircle); fovStroke.Thickness = 1.5
+Instance.new("UICorner", fovCircle).CornerRadius = UDim.new(1, 0)
+
+local main = Instance.new("Frame", sg)
+main.Size = UDim2.new(0, 230, 0, 380)
+main.Position = UDim2.new(0.5, -115, 0.5, -190)
+main.BackgroundColor3 = Color3.fromRGB(5, 5, 5)
+Instance.new("UICorner", main).CornerRadius = UDim.new(0, 8)
+local mainStroke = Instance.new("UIStroke", main); mainStroke.Thickness = 2
+
+-- [[ THE "GOOD SPEED" ENGINE (V24) ]]
+_G.EliteLock = RunService.RenderStepped:Connect(function()
+    local cam = workspace.CurrentCamera
+    if not cam or not _G.Aimbot or not lp.Character then return end
+    
+    local center = Vector2.new(cam.ViewportSize.X/2, cam.ViewportSize.Y/2)
+    local rainbow = Color3.fromHSV(tick() % 2 / 2, 1, 1)
+    
+    mainStroke.Color = rainbow; fovStroke.Color = rainbow
+    fovCircle.Position = UDim2.new(0, center.X, 0, center.Y)
+    fovCircle.Size = UDim2.new(0, _G.Fov * 2, 0, _G.Fov * 2)
+
+    local target = nil
+    local closest = _G.Fov
+    
+    -- Optimized Logic: We check EVERYONE regardless of distance
+    for _, p in pairs(Players:GetPlayers()) do
+        if p ~= lp and p.Character then
+            local head = p.Character:FindFirstChild("Head")
+            local hum = p.Character:FindFirstChildOfClass("Humanoid")
+            
+            if head and hum and hum.Health > 0 then
+                if _G.TeamCheck and p.Team == lp.Team then continue end
+                
+                local screenPos, onScreen = cam:WorldToViewportPoint(head.Position)
+                if onScreen then
+                    local dist = (Vector2.new(screenPos.X, screenPos.Y) - center).Magnitude
+                    if dist < closest then
+                        -- Optional Wall Check (slows things down, turn OFF for speed)
+                        if _G.WallCheck then
+                            local hit = cam:Raycast(cam.CFrame.Position, (head.Position - cam.CFrame.Position))
+                            if hit and not hit.Instance:IsDescendantOf(p.Character) then continue end
+                        end
+                        closest = dist
+                        target = head
+                    end
+                end
+            end
+        end
+    end
+    
+    if target then
+        -- FORCE CFRAME (The "Original" Speed feel)
+        local goal = CFrame.new(cam.CFrame.Position, target.Position)
+        if _G.Strength >= 0.9 then
+            cam.CFrame = goal
+        else
+            -- Hyper-Fast Lerp for Assist
+            cam.CFrame = cam.CFrame:Lerp(goal, _G.Strength)
+        end
+    end
+end)
+
+-- [[ UI CONTROLS ]]
+local function createSlider(name, y, min, max, default, callback)
+    local label = Instance.new("TextLabel", main)
+    label.Size = UDim2.new(1, 0, 0, 20); label.Position = UDim2.new(0, 0, 0, y)
+    label.Text = name .. ": " .. default; label.TextColor3 = Color3.new(1,1,1)
+    label.BackgroundTransparency = 1; label.Font = Enum.Font.Code
+    
+    local bg = Instance.new("Frame", main)
+    bg.Size = UDim2.new(0.8, 0, 0, 4); bg.Position = UDim2.new(0.1, 0, 0, y + 25)
+    bg.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+
+    local fill = Instance.new("Frame", bg)
+    fill.Size = UDim2.new((default - min) / (max - min), 0, 1, 0)
+    fill.BackgroundColor3 = Color3.fromRGB(255, 0, 0)
+
+    local btn = Instance.new("TextButton", bg)
+    btn.Size = UDim2.new(0, 16, 0, 16); btn.Position = UDim2.new(fill.Size.X.Scale, -8, 0.5, -8)
+    btn.Text = ""; btn.BackgroundColor3 = Color3.new(1, 1, 1); Instance.new("UICorner", btn)
+
+    local drag = false
+    btn.InputBegan:Connect(function(i) if i.UserInputType == Enum.UserInputType.Touch or i.UserInputType == Enum.UserInputType.MouseButton1 then drag = true end end)
+    UserInputService.InputEnded:Connect(function(i) drag = false end)
+    UserInputService.InputChanged:Connect(function(i)
+        if drag then
+            local pos = math.clamp((i.Position.X - bg.AbsolutePosition.X) / bg.AbsoluteSize.X, 0, 1)
+            fill.Size = UDim2.new(pos, 0, 1, 0)
+            btn.Position = UDim2.new(pos, -8, 0.5, -8)
+            local val = min + (max - min) * pos
+            callback(val)
+            label.Text = name .. ": " .. (val >= 0.9 and "INSTANT" or string.format("%.2f", val))
+        end
+    end)
+end
+
+createSlider("FOV SIZE", 50, 50, 1500, _G.Fov, function(v) _G.Fov = v end)
+createSlider("STRENGTH", 100, 0.1, 1.0, _G.Strength, function(v) _G.Strength = v end)
+
+local function toggle(txt, y, var)
+    local b = Instance.new("TextButton", main)
+    b.Size = UDim2.new(0.8, 0, 0, 35); b.Position = UDim2.new(0.1, 0, 0, y)
+    b.BackgroundColor3 = Color3.fromRGB(15, 15, 15); b.TextColor3 = Color3.new(1, 1, 1)
+    b.Text = txt .. ": " .. tostring(_G[var]):upper(); b.Font = Enum.Font.Code; Instance.new("UICorner", b)
+    b.MouseButton1Click:Connect(function() _G[var] = not _G[var]; b.Text = txt .. ": " .. tostring(_G[var]):upper() end)
+end
+
+toggle("TEAM CHECK", 160, "TeamCheck")
+toggle("WALL CHECK", 210, "WallCheck")
+toggle("AIMBOT", 260, "Aimbot")
+
+-- d4 Toggle Icon
+local t = Instance.new("TextButton", sg)
+t.Size = UDim2.new(0, 50, 0, 50); t.Position = UDim2.new(0, 20, 0, 100)
+t.Text = "d4"; t.BackgroundColor3 = Color3.fromRGB(5, 5, 5); t.TextColor3 = Color3.new(1, 0, 0)
+Instance.new("UICorner", t).CornerRadius = UDim.new(1, 0); local ts = Instance.new("UIStroke", t); ts.Thickness = 2
+t.MouseButton1Click:Connect(function() main.Visible = not main.Visible end)
