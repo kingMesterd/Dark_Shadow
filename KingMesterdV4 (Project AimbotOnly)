@@ -1,0 +1,190 @@
+local Players = game:GetService("Players")
+local UserInputService = game:GetService("UserInputService")
+local RunService = game:GetService("RunService")
+
+local LocalPlayer = Players.LocalPlayer
+local Camera = workspace.CurrentCamera
+
+-- =====================
+-- // COMBAT STATE
+-- =====================
+local AimAssistEnabled = false
+local AimAssistStrength = 0.1
+local AimAssistFOV = 100
+local ShowFOVCircle = true
+local TeamCheckEnabled = true
+local WallCheckEnabled = true
+local AimAssistConnection = nil
+_G.AimTarget = "Head"
+
+local FOVCircle = Drawing.new("Circle")
+FOVCircle.Visible = false
+FOVCircle.Radius = AimAssistFOV
+FOVCircle.Color = Color3.fromRGB(255, 255, 255)
+FOVCircle.Thickness = 1.5
+FOVCircle.Filled = false
+FOVCircle.NumSides = 64
+
+-- =====================
+-- // COMBAT FUNCTIONS
+-- =====================
+
+local function HasLineOfSight(targetPart)
+	local origin = Camera.CFrame.Position
+	local direction = targetPart.Position - origin
+
+	local rayParams = RaycastParams.new()
+	rayParams.FilterType = Enum.RaycastFilterType.Exclude
+
+	local chars = {}
+	for _, p in ipairs(Players:GetPlayers()) do
+		if p.Character then table.insert(chars, p.Character) end
+	end
+	rayParams.FilterDescendantsInstances = chars
+
+	return workspace:Raycast(origin, direction.Unit * direction.Magnitude, rayParams) == nil
+end
+
+local function IsEnemy(player)
+	if not TeamCheckEnabled then return true end
+	local myTeam = LocalPlayer.Team
+	local theirTeam = player.Team
+	if myTeam == nil and theirTeam == nil then return true end
+	return myTeam ~= theirTeam
+end
+
+local function GetNearestTarget()
+	local screenCenter = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y / 2)
+	local closestPlayer = nil
+	local closestDist = AimAssistFOV
+
+	for _, player in ipairs(Players:GetPlayers()) do
+		if player == LocalPlayer then continue end
+		if not IsEnemy(player) then continue end
+
+		local char = player.Character
+		if not char then continue end
+
+		local aimPart = char:FindFirstChild(_G.AimTarget) or char:FindFirstChild("HumanoidRootPart")
+		local hum = char:FindFirstChildOfClass("Humanoid")
+		if not aimPart or not hum or hum.Health <= 0 then continue end
+
+		local screenPos, onScreen = Camera:WorldToViewportPoint(aimPart.Position)
+		if not onScreen then continue end
+
+		local dist = (Vector2.new(screenPos.X, screenPos.Y) - screenCenter).Magnitude
+		if dist >= closestDist then continue end
+
+		if WallCheckEnabled and not HasLineOfSight(aimPart) then continue end
+
+		closestDist = dist
+		closestPlayer = player
+	end
+
+	return closestPlayer
+end
+
+local function StartAimAssist()
+	AimAssistConnection = RunService.Heartbeat:Connect(function()
+		local screenCenter = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y / 2)
+		FOVCircle.Position = screenCenter
+		FOVCircle.Radius = AimAssistFOV
+		FOVCircle.Visible = ShowFOVCircle and AimAssistEnabled
+
+		if not AimAssistEnabled then return end
+
+		local isAiming = UserInputService:IsMouseButtonPressed(Enum.UserInputType.MouseButton2)
+			or UserInputService:IsKeyDown(Enum.KeyCode.ButtonL2)
+		local isMobile = UserInputService.TouchEnabled and not UserInputService.KeyboardEnabled
+		if not isAiming and not isMobile then return end
+
+		local target = GetNearestTarget()
+		if not target then return end
+
+		local char = target.Character
+		if not char then return end
+
+		local aimPart = char:FindFirstChild(_G.AimTarget) or char:FindFirstChild("HumanoidRootPart")
+		if not aimPart then return end
+
+		Camera.CFrame = Camera.CFrame:Lerp(
+			CFrame.new(Camera.CFrame.Position, aimPart.Position),
+			AimAssistStrength
+		)
+	end)
+end
+
+local function StopAimAssist()
+	if AimAssistConnection then AimAssistConnection:Disconnect(); AimAssistConnection = nil end
+	FOVCircle.Visible = false
+end
+
+local Library = loadstring(game:HttpGet("https://raw.githubusercontent.com/kingMesterd/Dark_Shadow/refs/heads/main/KavoUi"))()
+local Window = Library.CreateLib("KingMesterdV4 Hub", "Ocean")
+
+local Tab1 = Window:NewTab("Player")
+local Tab1Section = Tab1:NewSection("Players")
+
+local ToggleGui = Instance.new("ScreenGui")
+local Toggle = Instance.new("TextButton")
+
+ToggleGui.Name = "ToggleGui_HE"
+ToggleGui.Parent = game.CoreGui
+
+Toggle.Name = "Toggle"
+Toggle.Parent = ToggleGui
+Toggle.BackgroundColor3 = Color3.fromRGB(24, 24, 24)
+Toggle.BackgroundTransparency = 0.660
+Toggle.Position = UDim2.new(0, 0, 0.454706937, 0)
+Toggle.Size = UDim2.new(0.0650164187, 0, 0.0888099447, 0)
+Toggle.Font = Enum.Font.SourceSans
+Toggle.Text = "Toggle"
+Toggle.TextScaled = true
+Toggle.TextColor3 = Color3.fromRGB(5, 255, 193)
+Toggle.TextSize = 30.000
+Toggle.TextXAlignment = Enum.TextXAlignment.Left
+Toggle.Active = true
+Toggle.Draggable = true
+Toggle.MouseButton1Click:connect(function()
+    Library:ToggleUI()
+end)
+
+Tab1Section:NewToggle("Enable Aim Assist", "ToggleInfo", function(v)
+AimAssistEnabled = v
+    if v then
+        StartAimAssist()
+    else
+        StopAimAssist()
+    end
+end)
+
+Tab1Section:NewSlider("Aim Assist Strength", "SliderInfo", 2, 0, function(v)
+    AimAssistStrength = v
+end)
+
+local Tab1Section = Tab1:NewSection("Filter")
+
+Tab1Section:NewToggle("Team Check", "ToggleInfo", function(v)
+    TeamCheckEnabled = v
+end)
+
+Tab1Section:NewToggle("Wall Check", "ToggleInfo", function(v)
+    WallCheckEnabled = v
+end)
+
+local Tab1Section = Tab1:NewSection("FOV Circle")
+
+Tab1Section:NewToggle("Show FOV Circle", "ToggleInfo", function(v)
+    ShowFOVCircle = v
+		FOVCircle.Visible = v and AimAssistEnabled
+end)
+
+Tab1Section:NewSlider("FOV Radius", "SliderInfo", 500, 50, function(v)
+    AimAssistFOV = v; FOVCircle.Radius = v
+end)
+
+local Tab1Section = Tab1:NewSection("FOV Circle")
+
+Tab1Section:NewDropdown("Aim At", "DropdownInf", {"Head", "HumanoidRootPart"}, function(o)
+    _G.AimTarget = o
+end)
